@@ -3779,10 +3779,29 @@
       if(targeting.indexOf('asin')!==-1) return 'ASIN';
       return 'OTHER';
     }
-    if(mt==='TARGETING_EXPRESSION_PREDEFINED'){
+    // Unified Reporting's raw "Targeting Match Type" column spells
+    // auto-targeting rows as the enum value TARGETING_EXPRESSION_PREDEFINED.
+    // Search Term Reports export the exact same auto-targeting rows with a
+    // literal "-" in their "Match Type" column instead (confirmed against a
+    // real Sponsored Products Search Term report) — same rows, different
+    // report format's spelling of "no match type" — so both are treated
+    // identically here.
+    if(mt==='TARGETING_EXPRESSION_PREDEFINED' || mt==='-'){
       if(targeting.indexOf('substitutes')!==-1 || targeting.indexOf('loose-match')!==-1 || targeting.indexOf('close-match')!==-1 || targeting.indexOf('complements')!==-1) return 'AUTO';
+      if(targeting.indexOf('category=')!==-1) return 'CATEGORY';
+      // "asin-expanded=..." doesn't contain the literal substring "asin="
+      // (there's a hyphen between "asin" and "expanded"), so both phrases
+      // need their own check rather than relying on one to catch the other.
+      if(targeting.indexOf('asin=')!==-1 || targeting.indexOf('asin-expanded')!==-1) return 'ASIN';
       return 'OTHER';
     }
+    // Sponsored Display Targeting reports have no Match Type column at all
+    // (mt is always blank for rows merged in from an SD Search Term/
+    // Targeting report — see STR_REPORT_SPECS.sd, which has no
+    // targetingMatchType field), so category/ASIN targeting there can only
+    // be read off the Targeting text itself.
+    if(!mt && targeting.indexOf('category=')!==-1) return 'CATEGORY';
+    if(!mt && (targeting.indexOf('asin=')!==-1 || targeting.indexOf('asin-expanded')!==-1)) return 'ASIN';
     return 'OTHER';
   }
 
