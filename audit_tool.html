@@ -222,19 +222,19 @@
      above — those stay the primary, obvious way to upload. */
   .bulk-sq{
     position:relative;flex:0 0 auto;
-    width:36px;height:36px;
+    width:103px;height:35px;
     border:1.5px dashed var(--border-strong);
-    border-radius:7px;
+    border-radius:6px;
     background:var(--panel-2);
-    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    display:flex;flex-direction:row;align-items:center;justify-content:center;gap:6px;
     cursor:pointer;
     transition:border-color .15s ease, background .15s ease;
   }
   .bulk-sq:hover{border-color:#6c6d73;}
   .bulk-sq.has-file{border-style:solid;border-color:var(--good);}
   .bulk-sq.has-file .bulk-sq-icon, .bulk-sq.has-file .bulk-sq-label{color:var(--good-soft);}
-  .bulk-sq-icon{font-size:10px;line-height:1;color:var(--ink-muted);}
-  .bulk-sq-label{font-size:7.5px;text-transform:uppercase;letter-spacing:0.4px;font-weight:700;color:var(--ink-muted);margin-top:2px;}
+  .bulk-sq-icon{font-size:13px;line-height:1;color:var(--ink-muted);}
+  .bulk-sq-label{font-size:10.5px;text-transform:uppercase;letter-spacing:0.4px;font-weight:700;color:var(--ink-muted);}
 
   .dz-remove-btn{
     position:absolute;top:10px;right:10px;z-index:2;
@@ -838,6 +838,7 @@
     cursor:pointer;
   }
   .optional-upload:hover{border-color:#6c6d73;}
+  .optional-upload.has-file{border-style:solid;border-color:var(--good);background:#10160f;}
   .optional-upload input[type=file]{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;}
   .optional-upload .ou-text{min-width:0;}
   .optional-upload .ou-title{font-weight:600;font-size:13.5px;margin-bottom:3px;}
@@ -903,6 +904,32 @@
   }
   .mapping-apply-row{display:flex;align-items:center;justify-content:flex-end;gap:12px;min-height:32px;margin-top:8px;}
   .mapping-warning{font-size:11.5px;color:var(--warn-soft);}
+
+  .modal.modal-bulk-assign{max-width:600px;}
+  .bulk-assign-rows{display:flex;flex-direction:column;gap:12px;margin-bottom:20px;}
+  .bulk-assign-row{display:flex;align-items:center;gap:14px;}
+  .bulk-assign-label{flex:0 0 168px;font-size:13px;font-weight:600;color:var(--ink-secondary);}
+  .bulk-assign-label-unassigned{flex:0 0 auto;margin-bottom:8px;}
+  .bulk-assign-unassigned-wrap{padding-top:16px;border-top:1px solid var(--border);}
+  .bulk-assign-drop{
+    flex:1 1 auto;min-height:44px;
+    border:1.5px dashed var(--border-strong);border-radius:8px;
+    background:var(--panel-2);
+    display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:6px 10px;
+    transition:border-color .12s ease, background .12s ease;
+  }
+  .bulk-assign-drop.drag-over{border-color:var(--ink-secondary);background:rgba(255,255,255,0.05);}
+  .bulk-assign-drop:empty::after{content:'Drop a file here';font-size:12px;color:var(--ink-muted);}
+  .bulk-assign-drop-unassigned{min-height:52px;background:transparent;border-style:dotted;}
+  .bulk-tile{
+    display:inline-flex;align-items:center;gap:8px;max-width:100%;
+    background:var(--panel);border:1px solid var(--border-strong);border-radius:6px;
+    padding:7px 11px;font-size:12.5px;color:var(--ink);
+    cursor:grab;user-select:none;
+  }
+  .bulk-tile:active{cursor:grabbing;}
+  .bulk-tile.dragging{opacity:0.4;}
+  .bulk-tile .bt-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:300px;}
 
   .loading-note{padding:60px 0;text-align:center;color:var(--ink-muted);font-size:13px;}
   .footer-credit{margin-top:40px;padding-top:20px;border-top:1px solid var(--border);color:var(--ink-muted);font-size:11px;letter-spacing:0.2px;}
@@ -1030,7 +1057,7 @@
 
     <div class="launch-actions">
       <div class="launch-actions-left">
-        <label class="bulk-sq" id="dzBulk" title="Power-user shortcut: upload all three files at once. Name them with a 01 / 02 / 03 prefix (Amazon Ads / Product Listing / Branded Terms) so each one lands in the right slot above.">
+        <label class="bulk-sq" id="dzBulk" title="Power-user shortcut: upload all your launch files at once. Each file's columns are read to guess which file type it is, and you'll get a chance to confirm or fix the assignment before anything is applied.">
           <input type="file" id="fileBulk" class="dz-input" accept=".csv,.xlsx,.xls,.txt" multiple>
           <span class="bulk-sq-icon">&#8593;</span>
           <span class="bulk-sq-label">Bulk</span>
@@ -1118,6 +1145,25 @@
 
     <div class="modal-actions">
       <button class="btn btn-ghost btn-sm" id="btnCloseMappingModal">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="bulkAssignModalOverlay">
+  <div class="modal modal-wide modal-bulk-assign">
+    <h2>Confirm File Assignment</h2>
+    <p class="modal-sub">Here's how each uploaded file was matched to a file type — drag a tile into a different slot if anything needs fixing, then confirm.</p>
+
+    <div class="bulk-assign-rows" id="bulkAssignRows"></div>
+
+    <div class="bulk-assign-unassigned-wrap">
+      <div class="bulk-assign-label bulk-assign-label-unassigned">Unassigned</div>
+      <div class="bulk-assign-drop bulk-assign-drop-unassigned" data-slot="unassigned" id="bulkSlotUnassigned"></div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" id="btnCancelBulkAssign">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="btnConfirmBulkAssign">Confirm</button>
     </div>
   </div>
 </div>
@@ -1571,6 +1617,15 @@
     {key:'childAsin',  label:'Child ASIN',     standard:['(child) asin','child asin'],   required:true},
     {key:'title',      label:'Product Title',  standard:['title','product title'],       required:true}
   ];
+  // Not used for a user-facing mapping modal (the Branded Terms file is
+  // parsed as plain text, not through the mapping pipeline) — this
+  // signature exists purely so the Bulk-upload assignment step below can
+  // recognize a Branded Terms List by its column headers the same way it
+  // recognizes an Ads file or a Product Listing file.
+  var BRANDED_FIELDS = [
+    {key:'term',      label:'Branded Term', standard:['branded term','brand term','term'], required:true},
+    {key:'matchType', label:'Match Type',   standard:['match type'],                       required:false}
+  ];
 
   function fieldsForScope(scope){ return scope==='ads' ? ADS_FIELDS : CATALOG_FIELDS; }
 
@@ -1642,6 +1697,114 @@
       ]
     }
   };
+
+  /* =========================================================
+     BULK UPLOAD: content-based file-kind detection
+     Reads each bulk-uploaded file's actual header row and scores it
+     against a per-file-type set of "standard" column-name candidates —
+     rather than trusting a "01/02/03" filename prefix, which real-world
+     exports won't always have. A guess is only trusted when the
+     best-scoring kind clears a minimum match fraction AND has a clear
+     lead over the runner-up kind; otherwise the file is left unclassified
+     so it lands in the Bulk-assign modal's Unassigned tray for the user
+     to place by hand.
+
+     ADS_FIELDS/CATALOG_FIELDS/BRANDED_FIELDS (defined above) are reused
+     as-is for the Unified Reporting flow's 3 file types, since each is
+     already an unambiguous signature. Sponsored Products and Sponsored
+     Brands Search Term reports, though, share almost the exact same
+     mappable-field shape (see STR_REPORT_SPECS.sp/sb above — both use
+     "Customer Search Term"/"Match Type"/"Spend"/etc.), so telling them
+     apart from column names alone needs extra signal columns that exist
+     in the real Amazon exports but aren't part of what the app actually
+     maps: SP-only carries Retailer/Country and "7 Day ..." metrics, SB
+     carries "Cost type"/"Viewable Impressions" and "14 Day ..." metrics,
+     and Sponsored Display Targeting reports (which have no search term or
+     match type column at all) are further identified by their unique
+     "Bid optimization" and "New-to-brand" columns.
+  ========================================================= */
+  var STR_SNIFF_FIELDS = {
+    sp:[
+      {standard:['customer search term']},
+      {standard:['match type']},
+      {standard:['retailer']},
+      {standard:['country']},
+      {standard:['7 day total sales']},
+      {standard:['7 day total orders (#)']},
+      {standard:['7 day total units (#)']},
+      {standard:['7 day conversion rate']}
+    ],
+    sb:[
+      {standard:['customer search term']},
+      {standard:['match type']},
+      {standard:['cost type']},
+      {standard:['viewable impressions']},
+      {standard:['14 day total sales']},
+      {standard:['14 day total orders (#)']},
+      {standard:['14 day total units (#)']},
+      {standard:['14 day conversion rate']}
+    ],
+    sd:[
+      {standard:['bid optimization']},
+      {standard:['targeting']},
+      {standard:['cost type']},
+      {standard:['viewable impressions']},
+      {standard:['14 day detail page views (dpv)']},
+      {standard:['14 day new-to-brand orders (#)']},
+      {standard:['14 day new-to-brand sales']},
+      {standard:['14 day new-to-brand units (#)']}
+    ]
+  };
+
+  var BULK_KIND_FIELDS = {
+    ads:ADS_FIELDS, catalog:CATALOG_FIELDS, branded:BRANDED_FIELDS,
+    sp:STR_SNIFF_FIELDS.sp, sb:STR_SNIFF_FIELDS.sb, sd:STR_SNIFF_FIELDS.sd
+  };
+
+  // Which file-type slots the Bulk-assign modal shows, and in what order,
+  // for each report-type flow — the Unified flow's 3 slots vs. the Search
+  // Term Reports flow's 5.
+  var BULK_KIND_DEFS = {
+    unified:[
+      {kind:'ads',      label:'Amazon Ads File'},
+      {kind:'catalog',  label:'Product Listing File'},
+      {kind:'branded',  label:'Branded Terms List'}
+    ],
+    searchterm:[
+      {kind:'sp',       label:'Sponsored Products Search Term'},
+      {kind:'sb',       label:'Sponsored Brands Search Term'},
+      {kind:'sd',       label:'Sponsored Display Targeting'},
+      {kind:'catalog',  label:'Product Listing File'},
+      {kind:'branded',  label:'Branded Terms List'}
+    ]
+  };
+
+  function scoreHeadersAgainstFields(headers, fields){
+    var lowerHeaders = (headers||[]).map(function(h){ return String(h).trim().toLowerCase(); });
+    var matched = 0;
+    fields.forEach(function(f){
+      var hit = f.standard.some(function(s){ return lowerHeaders.indexOf(s)!==-1; });
+      if(hit) matched++;
+    });
+    return matched / fields.length;
+  }
+
+  // Scores `headers` against only the kinds relevant to the given kindDefs
+  // list (so a Unified-flow upload is never mistaken for a Search Term
+  // Report kind or vice versa), and returns the best kind if it clearly
+  // wins, or null if no kind is a confident match.
+  function sniffFileKind(headers, kindDefs){
+    if(!headers || !headers.length) return null;
+    var kinds = kindDefs.map(function(d){ return d.kind; });
+    var scores = {};
+    kinds.forEach(function(kind){
+      scores[kind] = scoreHeadersAgainstFields(headers, BULK_KIND_FIELDS[kind]);
+    });
+    var ranked = kinds.slice().sort(function(a,b){ return scores[b]-scores[a]; });
+    var best = ranked[0], second = ranked[1];
+    if(scores[best] >= 0.5 && (second===undefined || (scores[best]-scores[second]) >= 0.15)) return best;
+    return null;
+  }
 
   // Converts one Search Term Report's raw rows (still keyed by their own
   // original column headers) into rows keyed by the canonical ADS_FIELDS
@@ -1936,6 +2099,7 @@
   var dzAdsRemoveBtn = document.getElementById('dzAdsRemoveBtn');
   var dzCatalogRemoveBtn = document.getElementById('dzCatalogRemoveBtn');
   var dzBrandedTermsRemoveBtn = document.getElementById('dzBrandedTermsRemoveBtn');
+  var dzBrandedTerms = document.getElementById('dzBrandedTerms');
 
   function checkLaunchReady(){
     if(state.reportType==='searchterm'){
@@ -1980,6 +2144,7 @@
     fileBrandedTerms.value = '';
     fnBrandedTerms.textContent = '';
     dzBrandedTermsRemoveBtn.classList.add('hidden');
+    dzBrandedTerms.classList.remove('has-file');
     checkLaunchReady();
   }
 
@@ -2072,6 +2237,7 @@
     state.brandedTermsFile = f;
     fnBrandedTerms.textContent = f.name;
     dzBrandedTermsRemoveBtn.classList.remove('hidden');
+    dzBrandedTerms.classList.add('has-file');
     checkLaunchReady();
   }
 
@@ -2207,10 +2373,7 @@
       catalogSlotStr.appendChild(catalogWrapEl);
       launchSubtitleUnified.classList.add('hidden');
       launchSubtitleStr.classList.remove('hidden');
-      // The Bulk power-upload shortcut only understands the Unified
-      // 01/02/03 (Ads/Catalog/Branded) naming convention, so it's hidden
-      // in Search Term Reports mode to avoid misrouting files.
-      dzBulkEl.classList.add('hidden');
+      dzBulkEl.classList.remove('hidden');
     } else {
       uploadGridStr.classList.add('hidden');
       uploadGridUnified.classList.remove('hidden');
@@ -2262,63 +2425,200 @@
     openMappingModal({ scope:'catalog', autoTriggered:true });
   });
 
-  // Bulk upload: a small, discreet power-user shortcut (see .bulk-sq)
-  // that lets someone pick all three launch files in one native file
-  // dialog instead of using the three dropzones one at a time. Files are
-  // routed to the right slot purely by filename prefix — "01" = Amazon
-  // Ads, "02" = Product Listing, "03" = Branded Terms — matching the
-  // convention already used by real Amazon bulk-file exports. Each
-  // matched file is handed to the exact same assign*File function the
-  // individual dropzones use, so everything downstream (has-file state,
-  // filename display, the individual remove/re-upload buttons) behaves
-  // identically to uploading them one by one — nothing here is special-
-  // cased past the initial routing.
+  // Bulk upload: a small, discreet power-user shortcut (see .bulk-sq) that
+  // lets someone pick all their launch files in one native file dialog
+  // instead of using the individual dropzones one at a time. Shared
+  // between both report-type flows — Unified Reporting (Ads/Catalog/
+  // Branded, 3 slots) and Search Term Reports (SP/SB/SD/Catalog/Branded,
+  // 5 slots); see bulkKindDefsForCurrentFlow. Files are routed to a file
+  // type by actually reading each file's header row and scoring it
+  // against that flow's per-kind column signatures (see BULK_KIND_FIELDS/
+  // sniffFileKind above) rather than trusting a "01/02/03" filename
+  // prefix — real exports won't always be numbered, or numbered
+  // consistently. Every guess is still shown to the user in the Bulk
+  // Assign modal for a final confirm-or-correct step (via draggable
+  // tiles) before anything is actually assigned; nothing is applied to
+  // app state until Confirm is clicked. Once confirmed, each populated
+  // slot is handed to the exact same assign*File function the individual
+  // dropzones use, so everything downstream (has-file state, filename
+  // display, the individual remove/re-upload buttons) behaves identically
+  // to uploading them one by one.
   var dzBulk = document.getElementById('dzBulk');
   var fileBulk = document.getElementById('fileBulk');
-  function classifyBulkFile(name){
-    var isSheet = /\.(csv|xlsx|xls)$/i.test(name);
-    var isTextish = /\.(csv|txt)$/i.test(name);
-    if(/^01/.test(name) && isSheet) return 'ads';
-    if(/^02/.test(name) && isSheet) return 'catalog';
-    if(/^03/.test(name) && isTextish) return 'branded';
-    return null;
+  var bulkAssignModalOverlay = document.getElementById('bulkAssignModalOverlay');
+  var bulkAssignState = { entries:[], kindDefs:[], slots:{}, unassigned:[] };
+
+  function resetBulkAssignState(){
+    bulkAssignState = { entries:[], kindDefs:[], slots:{}, unassigned:[] };
   }
+
+  // Which set of file-type slots to show depends on which report type is
+  // currently active — Unified Reporting's 3 slots, or Search Term
+  // Reports' 5 (see BULK_KIND_DEFS above). Defaults to unified if somehow
+  // called before a report type is chosen.
+  function bulkKindDefsForCurrentFlow(){
+    return state.reportType==='searchterm' ? BULK_KIND_DEFS.searchterm : BULK_KIND_DEFS.unified;
+  }
+
   fileBulk.addEventListener('change', function(){
     var files = Array.prototype.slice.call(this.files || []);
     fileBulk.value = ''; // allow re-selecting the same filename(s) again later
     if(!files.length) return;
+    openBulkAssignModal(files);
+  });
 
-    var adsFile=null, catalogFile=null, brandedFile=null, unmatched=[];
-    files.forEach(function(f){
-      var name = f.name.trim();
-      var kind = classifyBulkFile(name);
-      if(kind==='ads' && !adsFile) adsFile = f;
-      else if(kind==='catalog' && !catalogFile) catalogFile = f;
-      else if(kind==='branded' && !brandedFile) brandedFile = f;
-      else unmatched.push(name);
+  // Reads every selected file's header row (content, not filename) to
+  // guess its file type, then opens the confirmation modal once every
+  // file has finished being read.
+  function openBulkAssignModal(files){
+    var kindDefs = bulkKindDefsForCurrentFlow();
+    var entries = files.map(function(f){ return { file:f, headers:[], kind:null }; });
+    var pending = entries.length;
+    entries.forEach(function(entry){
+      readFileAsRows(entry.file, function(err, rows, headers){
+        entry.headers = err ? [] : (headers||[]);
+        entry.kind = err ? null : sniffFileKind(entry.headers, kindDefs);
+        pending--;
+        if(pending<=0) renderBulkAssignModal(entries, kindDefs);
+      });
     });
+  }
 
-    if(!adsFile && !catalogFile && !brandedFile){
-      launchError.textContent = 'None of those files were recognized — name them with a "01" (Amazon Ads), "02" (Product Listing), or "03" (Branded Terms) prefix.';
+  // Turns the read/sniffed entries into an initial slot layout: the first
+  // file guessed as a given kind takes that slot; anything else (a second
+  // file guessed the same kind, or a file with no confident guess) starts
+  // out in the Unassigned tray for the user to place by hand. Also builds
+  // the modal's slot rows to match kindDefs (3 for Unified, 5 for Search
+  // Term Reports).
+  function renderBulkAssignModal(entries, kindDefs){
+    var slots = {};
+    kindDefs.forEach(function(d){ slots[d.kind] = null; });
+    var unassigned = [];
+    entries.forEach(function(entry){
+      if(entry.kind && slots.hasOwnProperty(entry.kind) && !slots[entry.kind]) slots[entry.kind] = entry;
+      else unassigned.push(entry);
+    });
+    bulkAssignState.entries = entries;
+    bulkAssignState.kindDefs = kindDefs;
+    bulkAssignState.slots = slots;
+    bulkAssignState.unassigned = unassigned;
+
+    document.getElementById('bulkAssignRows').innerHTML = kindDefs.map(function(d){
+      return '<div class="bulk-assign-row">'+
+        '<div class="bulk-assign-label">'+esc(d.label)+'</div>'+
+        '<div class="bulk-assign-drop" data-slot="'+d.kind+'" id="bulkSlot_'+d.kind+'"></div>'+
+      '</div>';
+    }).join('');
+
+    paintBulkAssignModal();
+    bulkAssignModalOverlay.classList.remove('hidden');
+  }
+
+  function bulkTileHtml(entry){
+    var idx = bulkAssignState.entries.indexOf(entry);
+    return '<div class="bulk-tile" draggable="true" data-entry-idx="'+idx+'"><span class="bt-name">'+esc(entry.file.name)+'</span></div>';
+  }
+
+  function paintBulkAssignModal(){
+    bulkAssignState.kindDefs.forEach(function(d){
+      var el = document.getElementById('bulkSlot_'+d.kind);
+      var entry = bulkAssignState.slots[d.kind];
+      el.innerHTML = entry ? bulkTileHtml(entry) : '';
+    });
+    document.getElementById('bulkSlotUnassigned').innerHTML = bulkAssignState.unassigned.map(bulkTileHtml).join('');
+  }
+
+  // Moves one entry to a target slot (one of the current kindDefs' kinds,
+  // or 'unassigned'), first removing it from wherever it currently sits.
+  // Dropping onto an already-occupied slot bumps that slot's previous
+  // occupant to Unassigned rather than losing it — each named slot holds
+  // at most one file at a time.
+  function moveBulkEntry(entry, targetSlot){
+    var slots = bulkAssignState.slots;
+    Object.keys(slots).forEach(function(k){ if(slots[k]===entry) slots[k] = null; });
+    var uIdx = bulkAssignState.unassigned.indexOf(entry);
+    if(uIdx!==-1) bulkAssignState.unassigned.splice(uIdx,1);
+
+    if(targetSlot==='unassigned'){
+      bulkAssignState.unassigned.push(entry);
       return;
     }
-    launchError.textContent = unmatched.length
-      ? 'Uploaded via Bulk. Skipped (no recognized 01/02/03 prefix): '+unmatched.join(', ')+'.'
-      : '';
+    if(!slots.hasOwnProperty(targetSlot)) return;
+    var displaced = slots[targetSlot];
+    if(displaced && displaced!==entry) bulkAssignState.unassigned.push(displaced);
+    slots[targetSlot] = entry;
+  }
+
+  bulkAssignModalOverlay.addEventListener('dragstart', function(e){
+    var tile = e.target.closest('.bulk-tile');
+    if(!tile) return;
+    tile.classList.add('dragging');
+    e.dataTransfer.setData('text/plain', tile.getAttribute('data-entry-idx'));
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  bulkAssignModalOverlay.addEventListener('dragend', function(e){
+    var tile = e.target.closest('.bulk-tile');
+    if(tile) tile.classList.remove('dragging');
+  });
+  bulkAssignModalOverlay.addEventListener('dragover', function(e){
+    var drop = e.target.closest('.bulk-assign-drop');
+    if(!drop) return;
+    e.preventDefault();
+    drop.classList.add('drag-over');
+  });
+  bulkAssignModalOverlay.addEventListener('dragleave', function(e){
+    var drop = e.target.closest('.bulk-assign-drop');
+    if(drop) drop.classList.remove('drag-over');
+  });
+  bulkAssignModalOverlay.addEventListener('drop', function(e){
+    var drop = e.target.closest('.bulk-assign-drop');
+    if(!drop) return;
+    e.preventDefault();
+    drop.classList.remove('drag-over');
+    var idx = parseInt(e.dataTransfer.getData('text/plain'), 10);
+    if(isNaN(idx) || !bulkAssignState.entries[idx]) return;
+    moveBulkEntry(bulkAssignState.entries[idx], drop.getAttribute('data-slot'));
+    paintBulkAssignModal();
+  });
+
+  document.getElementById('btnCancelBulkAssign').addEventListener('click', function(){
+    bulkAssignModalOverlay.classList.add('hidden');
+    resetBulkAssignState();
+  });
+
+  document.getElementById('btnConfirmBulkAssign').addEventListener('click', function(){
+    var slots = bulkAssignState.slots;
+    var kindDefs = bulkAssignState.kindDefs;
+    bulkAssignModalOverlay.classList.add('hidden');
+
+    var anyAssigned = kindDefs.some(function(d){ return !!slots[d.kind]; });
+    if(!anyAssigned){
+      resetBulkAssignState();
+      return;
+    }
+    launchError.textContent = '';
     dzBulk.classList.add('has-file');
 
-    // Wait for every matched file's async read to finish before deciding
-    // whether a mapping modal is needed, and for which file(s) — so two
-    // simultaneously-uploaded files needing mapping produce one combined
-    // modal (Ads section first, then Product Listing, per the existing
-    // mapping-modal layout) instead of two modals racing each other open.
+    // Wait for every assigned Ads/Catalog file's async read to finish
+    // before deciding whether a mapping modal is needed, and for which
+    // file(s) — so two simultaneously-assigned files needing mapping
+    // produce one combined modal (Ads section first, then Product
+    // Listing, per the existing mapping-modal layout) instead of two
+    // modals racing each other open. Search Term Report files (sp/sb/sd)
+    // have no mapping modal of their own — assignStrFile surfaces a
+    // missing-column error inline instead — so they're just fired directly.
     var pending = 0;
     function onOneDone(){ pending--; if(pending<=0) afterBulkFilesRead(); }
-    if(adsFile){ pending++; assignAdsFile(adsFile, { suppressAutoModal:true, onDone:onOneDone }); }
-    if(catalogFile){ pending++; assignCatalogFile(catalogFile, { suppressAutoModal:true, onDone:onOneDone }); }
-    if(brandedFile) assignBrandedTermsFile(brandedFile);
+    if(slots.ads){ pending++; assignAdsFile(slots.ads.file, { suppressAutoModal:true, onDone:onOneDone }); }
+    if(slots.catalog){ pending++; assignCatalogFile(slots.catalog.file, { suppressAutoModal:true, onDone:onOneDone }); }
+    if(slots.branded) assignBrandedTermsFile(slots.branded.file);
+    if(slots.sp) assignStrFile('sp', slots.sp.file);
+    if(slots.sb) assignStrFile('sb', slots.sb.file);
+    if(slots.sd) assignStrFile('sd', slots.sd.file);
     if(pending===0) afterBulkFilesRead();
+    resetBulkAssignState();
   });
+
   function afterBulkFilesRead(){
     var needsAds = !!(state.adsFile && !state.mappingResolved.ads);
     var needsCatalog = !!(state.catalogFile && !state.mappingResolved.catalog);
@@ -2334,6 +2634,7 @@
       state.brandedTermsFile = null;
       fnBrandedTerms.textContent = '';
       dzBrandedTermsRemoveBtn.classList.add('hidden');
+      dzBrandedTerms.classList.remove('has-file');
     }
     checkLaunchReady();
   });
@@ -3632,7 +3933,7 @@
       var sales = num(r[m.sales]);
       var term = (r[m.term]||'').trim();
       var targeting = (m.targeting && r[m.targeting]) ? String(r[m.targeting]).trim() : '';
-      var isBrandedRow = isRemarketingViewsTargeting(targeting) ? true : (term ? isTermBranded(term.toLowerCase()) : false);
+      var isBrandedRow = isRemarketingAudienceTargeting(targeting) ? true : (term ? isTermBranded(term.toLowerCase()) : false);
       var bucket = isBrandedRow ? branded : nonbranded;
       bucket.spend += cost;
       if(sales<=0 && cost>0) bucket.wasted += cost;
@@ -3664,7 +3965,7 @@
       var clicks = num(r[m.clicks]);
       var term = (r[m.term]||'').trim();
       var targeting = (m.targeting && r[m.targeting]) ? String(r[m.targeting]).trim() : '';
-      var isBrandedRow = isRemarketingViewsTargeting(targeting) ? true : (term ? isTermBranded(term.toLowerCase()) : false);
+      var isBrandedRow = isRemarketingAudienceTargeting(targeting) ? true : (term ? isTermBranded(term.toLowerCase()) : false);
       var b = isBrandedRow ? raw.branded : raw.nonbranded;
       b.spend += cost;
       b.revenue += sales;
@@ -3733,7 +4034,24 @@
   // rather than by Targeting text (there's no keyword/ASIN to parse out of
   // "views=(exact-product lookback=90)" itself).
   function isRemarketingViewsTargeting(targeting){
-    return !!targeting && targeting.toLowerCase().indexOf('views=(exact-product lookback')!==-1;
+    return !!targeting && targeting.toLowerCase().indexOf('views=(exact-product')!==-1;
+  }
+  // Same idea as isRemarketingViewsTargeting, for the purchases-based
+  // remarketing variant: "purchases=(exact-product lookback=<N>)" retargets
+  // people who bought the advertised ASIN within the last N days —
+  // classified as its own "Remarketing - Purchases" match type, with the
+  // same Branded/New-Targets treatment as the views variant (see
+  // isRemarketingAudienceTargeting below).
+  function isRemarketingPurchasesTargeting(targeting){
+    return !!targeting && targeting.toLowerCase().indexOf('purchases=(exact-product')!==-1;
+  }
+  // Either remarketing-audience targeting variant (views- or
+  // purchases-based) — neither has a literal keyword/ASIN to compare
+  // against a brand list, so every place that needs to treat "is this row
+  // a real search term/target, or a predefined remarketing audience"
+  // checks this combined helper rather than the views-only one directly.
+  function isRemarketingAudienceTargeting(targeting){
+    return isRemarketingViewsTargeting(targeting) || isRemarketingPurchasesTargeting(targeting);
   }
 
   // Targeting values of the form 'keyword-group="<some group name>"' are
@@ -3763,8 +4081,24 @@
   // appended separately by callers. MATCH_TYPE_LABELS maps each internal
   // key to its display text — only entries that differ from their own key
   // need a mapping ("Remarketing - Views", "Keyword Group").
-  var MATCH_TYPE_ORDER = ['AUTO','CATEGORY','ASIN','KEYWORD_GROUP','REMARKETING_VIEWS','EXACT','PHRASE','BROAD','OTHER'];
-  var MATCH_TYPE_LABELS = { REMARKETING_VIEWS:'Remarketing - Views', KEYWORD_GROUP:'Keyword Group' };
+  var MATCH_TYPE_ORDER = ['AUTO','CATEGORY','ASIN','KEYWORD_GROUP','REMARKETING_VIEWS','REMARKETING_PURCHASES','EXACT','PHRASE','BROAD','OTHER'];
+  var MATCH_TYPE_LABELS = { REMARKETING_VIEWS:'Remarketing - Views', REMARKETING_PURCHASES:'Remarketing - Purchases', KEYWORD_GROUP:'Keyword Group' };
+
+  // Row order + inclusion rule specifically for the Match Type Performance
+  // sub-page's Ad Spend/Ad Revenue and ROAS charts (not the Wasted Spend
+  // chart on the same page, which keeps using MATCH_TYPE_ORDER as-is).
+  // AUTO/BROAD/PHRASE/EXACT/ASIN/CATEGORY always get a row — even a $0 one
+  // — so the two charts' shape stays comparable across audits; the rest
+  // (Keyword Group, both Remarketing types, Other) only get a row when that
+  // bucket actually has data, so an audit with no keyword-group or
+  // remarketing-audience targeting doesn't carry empty rows (and both
+  // charts' bar scale is computed from whatever rows actually render — see
+  // renderGroupedHBarChart's own maxVal calc).
+  var CHART_MATCH_TYPE_ORDER = ['AUTO','BROAD','PHRASE','EXACT','ASIN','CATEGORY','KEYWORD_GROUP','REMARKETING_VIEWS','REMARKETING_PURCHASES','OTHER'];
+  var CHART_MATCH_TYPE_ALWAYS_SHOW = { AUTO:true, BROAD:true, PHRASE:true, EXACT:true, ASIN:true, CATEGORY:true };
+  function matchTypeBucketHasData(d){
+    return !!d && (d.spend>0 || d.revenue>0 || d.clicks>0 || d.orders>0);
+  }
   function matchTypeLabel(t){ return MATCH_TYPE_LABELS[t] || t; }
   function classifyMatchType(r, m){
     var mt = (m.targetingMatchType && r[m.targetingMatchType]) ? String(r[m.targetingMatchType]).trim().toUpperCase() : '';
@@ -3774,6 +4108,7 @@
     if(mt==='EXACT') return 'EXACT';
     if(mt==='TARGETING_EXPRESSION'){
       if(isRemarketingViewsTargeting(targeting)) return 'REMARKETING_VIEWS';
+      if(isRemarketingPurchasesTargeting(targeting)) return 'REMARKETING_PURCHASES';
       if(isKeywordGroupTargeting(targeting)) return 'KEYWORD_GROUP';
       if(targeting.indexOf('category=')!==-1) return 'CATEGORY';
       if(targeting.indexOf('asin')!==-1) return 'ASIN';
@@ -3787,6 +4122,8 @@
     // report format's spelling of "no match type" — so both are treated
     // identically here.
     if(mt==='TARGETING_EXPRESSION_PREDEFINED' || mt==='-'){
+      if(isRemarketingViewsTargeting(targeting)) return 'REMARKETING_VIEWS';
+      if(isRemarketingPurchasesTargeting(targeting)) return 'REMARKETING_PURCHASES';
       if(targeting.indexOf('substitutes')!==-1 || targeting.indexOf('loose-match')!==-1 || targeting.indexOf('close-match')!==-1 || targeting.indexOf('complements')!==-1) return 'AUTO';
       if(targeting.indexOf('category=')!==-1) return 'CATEGORY';
       // "asin-expanded=..." doesn't contain the literal substring "asin="
@@ -3798,8 +4135,12 @@
     // Sponsored Display Targeting reports have no Match Type column at all
     // (mt is always blank for rows merged in from an SD Search Term/
     // Targeting report — see STR_REPORT_SPECS.sd, which has no
-    // targetingMatchType field), so category/ASIN targeting there can only
-    // be read off the Targeting text itself.
+    // targetingMatchType field), so remarketing/category/ASIN targeting
+    // there can only be read off the Targeting text itself. This is the
+    // branch that matters most for real Sponsored Display Targeting Report
+    // uploads, since mt is always blank for them.
+    if(!mt && isRemarketingViewsTargeting(targeting)) return 'REMARKETING_VIEWS';
+    if(!mt && isRemarketingPurchasesTargeting(targeting)) return 'REMARKETING_PURCHASES';
     if(!mt && targeting.indexOf('category=')!==-1) return 'CATEGORY';
     if(!mt && (targeting.indexOf('asin=')!==-1 || targeting.indexOf('asin-expanded')!==-1)) return 'ASIN';
     return 'OTHER';
@@ -3940,7 +4281,7 @@
         var targeting = (m.targeting && r[m.targeting]) ? String(r[m.targeting]).trim() : '';
         if(!targeting) return; // no identifiable search result for this row
         var targetingLower = targeting.toLowerCase();
-        if(isRemarketingViewsTargeting(targeting)){
+        if(isRemarketingAudienceTargeting(targeting)){
           var advAsin = (m.advertisedProductId && r[m.advertisedProductId]) ? String(r[m.advertisedProductId]).trim() : '';
           if(advAsin){ key = advAsin.toUpperCase(); display = advAsin; isAsin = true; }
           else { key = targetingLower; display = targeting; }
@@ -4045,13 +4386,14 @@
       var targeting = (m.targeting && r[m.targeting]) ? String(r[m.targeting]).trim() : '';
       if(!targeting) return;
       var targetingLower = targeting.toLowerCase();
-      // A "views=(exact-product lookback=...)" remarketing target isn't a
-      // literal keyword/ASIN target itself — it's a retargeting config, so
-      // it never contributes to either target universe. Its own row's
-      // identity is the Advertised Product ID (handled in
-      // buildUniqueSearchResults), which is only ever checked AGAINST
-      // asinTargets below, never added to it just for appearing here.
-      if(isRemarketingViewsTargeting(targeting)) return;
+      // A "views=(exact-product lookback=...)" or "purchases=(exact-product
+      // lookback=...)" remarketing target isn't a literal keyword/ASIN
+      // target itself — it's a retargeting config, so it never contributes
+      // to either target universe. Its own row's identity is the
+      // Advertised Product ID (handled in buildUniqueSearchResults), which
+      // is only ever checked AGAINST asinTargets below, never added to it
+      // just for appearing here.
+      if(isRemarketingAudienceTargeting(targeting)) return;
       if(targetingLower.indexOf('asin')!==-1){
         var asinVal = extractAsinFromTargeting(targeting);
         if(asinVal){ asinTargets.add(asinVal.toUpperCase()); return; }
@@ -4745,7 +5087,6 @@
     document.getElementById('calloutDetailTitle').textContent = calloutDetailTitleText('matchTypePerformance');
     document.getElementById('calloutDetailSub').textContent = 'Ad Spend, Ad Revenue, ROAS, and Wasted Spend performance broken out by targeting match type.';
 
-    var rowOrder = MATCH_TYPE_ORDER.concat(['TOTAL']);
     function rowFor(type, extra){
       var isTotal = type==='TOTAL';
       var d = isTotal ? mt.total : mt.byType[type];
@@ -4754,7 +5095,17 @@
       return {base:base, d:d};
     }
 
-    var spendRevenueRows = rowOrder.map(function(type){
+    // All three charts (Ad Spend/Revenue, ROAS, Wasted Spend) use this same
+    // fixed order, only including Keyword Group / Remarketing - Views /
+    // Remarketing - Purchases / Other when that bucket actually has data
+    // (see CHART_MATCH_TYPE_ORDER above) — AUTO/BROAD/PHRASE/EXACT/ASIN/
+    // CATEGORY always get a row so the charts' shape stays comparable
+    // across audits.
+    var chartRowOrder = CHART_MATCH_TYPE_ORDER.filter(function(type){
+      return CHART_MATCH_TYPE_ALWAYS_SHOW[type] || matchTypeBucketHasData(mt.byType[type]);
+    }).concat(['TOTAL']);
+
+    var spendRevenueRows = chartRowOrder.map(function(type){
       var r = rowFor(type, {fmt:'currency'});
       r.base.spend = r.d.spend;
       r.base.revenue = r.d.revenue;
@@ -4762,14 +5113,14 @@
     });
     var spendRevenueSeries = [{key:'spend',label:'Ad Spend',cls:'spend'},{key:'revenue',label:'Ad Revenue',cls:'wasted'}];
 
-    var roasRows = rowOrder.map(function(type){
+    var roasRows = chartRowOrder.map(function(type){
       var r = rowFor(type, {fmt:'ratio'});
       r.base.roas = r.d.roas;
       return r.base;
     });
     var roasSeries = [{key:'roas',label:'ROAS',cls:'spend'}];
 
-    var wastedRows = rowOrder.map(function(type){
+    var wastedRows = chartRowOrder.map(function(type){
       var r = rowFor(type, {fmt:'currency'});
       r.base.wasted = r.d.wasted;
       return r.base;
