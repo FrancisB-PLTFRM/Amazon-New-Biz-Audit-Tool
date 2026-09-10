@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&family=Roboto:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
     --page:#05070b;
@@ -288,6 +289,27 @@
     overflow:auto;
   }
   .modal.modal-wide{max-width:560px;}
+  /* Frosted glass (rather than the plain translucent .overlay default) —
+     while the PDF export cycles through every page behind the scenes to
+     capture each one, this keeps that motion from reading as a jarring
+     flash of content without hiding it behind a flat, opaque screen. */
+  .pdf-export-overlay{
+    background:rgba(5,7,11,0.45);
+    -webkit-backdrop-filter:blur(18px) saturate(140%);
+    backdrop-filter:blur(18px) saturate(140%);
+  }
+  .pdf-loading-card{
+    background:var(--panel);border:1px solid var(--border-strong);border-radius:var(--radius);
+    padding:36px 40px;max-width:340px;width:100%;text-align:center;
+  }
+  .pdf-loading-spinner{
+    width:32px;height:32px;margin:0 auto 18px;border-radius:50%;
+    border:3px solid var(--border-strong);border-top-color:var(--ink);
+    animation:pdf-spin 0.8s linear infinite;
+  }
+  @keyframes pdf-spin{to{transform:rotate(360deg);}}
+  .pdf-loading-title{font-size:15px;font-weight:700;margin-bottom:6px;}
+  .pdf-loading-sub{font-size:12.5px;color:var(--ink-muted);}
   .modal h2{font-size:19px;margin:0 0 6px;font-weight:700;}
   .modal .modal-sub{color:var(--ink-muted);font-size:13px;margin:0 0 22px;}
   .field-label{font-size:12px;text-transform:uppercase;letter-spacing:0.6px;color:var(--ink-muted);font-weight:600;margin-bottom:8px;display:block;}
@@ -334,6 +356,72 @@
   .modal-line-item:last-child{border-bottom:none;}
   .modal-line-item .rm{color:var(--ink-muted);font-size:16px;line-height:1;background:none;border:none;padding:0 4px;}
   .modal-line-item .rm:hover{color:var(--ink);}
+
+  /* ---------- Additional Callouts: metric picker modal ---------- */
+  .metric-checkbox-list{
+    border:1px solid var(--border);
+    border-radius:7px;
+    background:var(--panel-2);
+    max-height:280px;
+    overflow-y:auto;
+    margin-bottom:12px;
+    display:flex;
+    flex-direction:column;
+  }
+  .metric-checkbox-item{
+    display:flex;align-items:center;gap:10px;
+    padding:10px 14px;
+    font-size:13.5px;
+    color:var(--ink-secondary);
+    border-bottom:1px solid var(--border);
+    cursor:pointer;
+  }
+  .metric-checkbox-item:last-child{border-bottom:none;}
+  .metric-checkbox-item:hover{color:var(--ink);}
+  .metric-checkbox-item input[type="checkbox"]{width:15px;height:15px;accent-color:var(--blue);cursor:pointer;}
+  .metric-select-toolbar{margin-bottom:12px;}
+  /* .split-btn defaults to display:flex, which as a block-level element
+     stretches to the modal's full width — fine where it's used inline
+     alongside other header content elsewhere, but here it's the only
+     thing on its line, so left unset it stretched into a wide bordered
+     bar with a lot of empty space after "Clear All". inline-flex makes it
+     hug just the two buttons instead. Combined-class selector so this
+     wins over plain .split-btn{display:flex} regardless of source order
+     (equal single-class specificity would otherwise let order decide). */
+  .split-btn.metric-select-toolbar{display:inline-flex;}
+  /* Additional Callouts: generated-bullet highlight spans — distinct from
+     the cb-emph/cb-term underline convention used elsewhere, since this
+     widget's whole point is to make the selected metric and the entity it
+     applies to visually jump out of the sentence at a glance. */
+  .ac-hl-metric{background:rgba(250,178,25,0.20);color:var(--warn-soft);padding:1px 6px;border-radius:4px;}
+  .ac-hl-entity{background:rgba(29,78,216,0.28);color:var(--blue-soft);padding:1px 6px;border-radius:4px;}
+  .addl-callouts-body{padding:0 18px 18px;}
+  /* One single bordered/grey panel houses the whole generated list (not a
+     border per bullet) — same rounded-border, slight-grey-background
+     treatment as the Key Call-Outs widgets elsewhere, just applied once
+     around the group rather than around each line. */
+  .addl-callouts-panel{
+    background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+    padding:20px 22px;margin-bottom:0;
+  }
+  .addl-callouts-panel .callout-bullets{margin:0;}
+  /* Blank state: styled and behaves like the app's other clickable
+     "start here" surfaces (the upload dropzones / report-type cards) —
+     dashed border, centered icon+label, hover feedback — instead of a
+     plain note plus a separate button. The whole panel is the click
+     target (data-addl-callouts-open, handled by the shared delegated
+     listener also used by the header's Reset button). */
+  .addl-callouts-panel-empty{
+    border-style:dashed;
+    background:var(--panel-2);
+    text-align:center;
+    padding:30px 20px;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .addl-callouts-panel-empty:hover{border-color:#6c6d73;background:#1c1d21;}
+  .addl-callouts-panel-empty:focus-visible{outline:2px solid var(--blue-hover);outline-offset:2px;}
+  .addl-callouts-panel-empty .dz-icon{margin:0 auto 12px;}
 
   /* ---------- app shell ---------- */
   #app{display:flex;min-height:100vh;}
@@ -404,6 +492,35 @@
   .page-header{margin-bottom:26px;}
   .page-header h1{font-size:22px;margin:0 0 4px;font-weight:700;}
   .page-header .page-sub{color:var(--ink-muted);font-size:13.5px;margin:0;}
+  .page-header h1.page-header-title-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .page-header-icon-btn{display:inline-flex;align-items:center;gap:7px;background:transparent;border:1px solid var(--border-strong);color:var(--ink-secondary);font-family:inherit;font-size:12.5px;font-weight:600;padding:7px 13px;border-radius:7px;cursor:pointer;}
+  .page-header-icon-btn:hover{color:var(--ink);border-color:var(--ink);background:#212226;}
+  .page-header-icon-btn:disabled{opacity:0.55;cursor:default;pointer-events:none;}
+  .page-header-icon-btn svg{flex:0 0 auto;}
+  .page-header-icon-label{line-height:1;}
+
+  /* ---------- Full Audit PDF export capture mode ----------
+     Applied to <body> only for the instant each section is captured by
+     html2canvas, then removed. Strips chrome that shouldn't appear in a
+     static, printed deck (sidebar, per-widget export icons, back links,
+     the Export PDF trigger itself) and lets #main use the full simulated
+     print-width viewport (see windowWidth in exportFullAuditPdf) instead
+     of sharing it with the sidebar. */
+  .pdf-export-mode #sidebar{display:none !important;}
+  .pdf-export-mode #main{padding:0 !important;max-width:none !important;}
+  .pdf-export-mode .widget-io-actions{display:none !important;}
+  .pdf-export-mode .callout-back-btn{display:none !important;}
+  .pdf-export-mode .callout-index-copy{display:none !important;}
+  .pdf-export-mode .callout-arrow{display:none !important;}
+  .pdf-export-mode .page-header-icon-btn{display:none !important;}
+  /* The Branded vs. Non-Branded Breakdown table (10 columns) is the one
+     table wide enough that its normal padding/font-size won't compress
+     below the print content width, so it gets a condensed "print table"
+     treatment here — every .ov-table gets it uniformly for a consistent
+     look, since the app's other (4-column) tables have plenty of room
+     to spare either way. */
+  .pdf-export-mode table.ov-table th{padding:8px 5px !important;font-size:9px !important;}
+  .pdf-export-mode table.ov-table td{padding:8px 5px !important;font-size:11px !important;}
   .tab-panel{display:none;}
   .tab-panel.active{display:block;}
 
@@ -465,6 +582,17 @@
      abbreviated figures ($4.2k / $1.4M) more breathing room before wrapping. */
   .kpi-two-col-row .kpi-tile .kpi-value{font-size:21px;}
   .kpi-two-col-row .kpi-tile .kpi-value [title]{cursor:help;text-decoration:underline dotted;text-decoration-color:var(--border-strong);text-underline-offset:3px;}
+  /* Branded Performance / Non-Branded Performance specifically: stay
+     side-by-side below the 980px breakpoint that collapses every other
+     .kpi-two-col-row pairing to a single column. Each side becomes its
+     own 2x2 grid at that same width (see the .kpi-row breakpoint above),
+     so the pair reads as two compact 2x2 cards next to each other rather
+     than one long list of 8 stacked tiles. This also covers the PDF
+     export's fixed 720px-wide capture window (see PDF_CONTENT_W), which
+     clears both breakpoints. Only below 560px — too narrow for two
+     legible 2x2 cards side by side — does the pair fall back to stacking. */
+  .kpi-two-col-row.segment-kpi-pair{grid-template-columns:1fr 1fr;gap:14px;}
+  @media (max-width:560px){.kpi-two-col-row.segment-kpi-pair{grid-template-columns:1fr;}}
   .hbar-card{padding:20px 22px;display:flex;flex-direction:column;}
   .hbar-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:10px;}
   .hbar-title{font-size:14px;font-weight:700;margin:0;color:var(--ink);}
@@ -483,6 +611,8 @@
   .hbar-group.is-total{border-top:1px solid var(--border);padding-top:16px;margin-top:6px;}
   .hbar-cat-label{flex:0 0 112px;font-size:12px;font-weight:600;color:var(--ink-secondary);text-align:right;}
   .hbar-group.is-total .hbar-cat-label{color:var(--ink);font-weight:800;}
+  button.hbar-cat-label-link{background:none;border:none;padding:0;font-family:inherit;cursor:pointer;color:var(--ink-secondary);text-decoration:underline;text-decoration-color:transparent;transition:color .12s ease, text-decoration-color .12s ease;}
+  button.hbar-cat-label-link:hover{color:var(--ink);text-decoration-color:var(--ink-secondary);}
   .hbar-bars{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px;}
   .hbar-bar-row{display:flex;align-items:center;gap:8px;height:14px;}
   /* The track is the actual 0%-100% plot area for the bar — giving the
@@ -752,15 +882,47 @@
   .wio-btn{background:none;border:none;color:var(--ink-secondary);padding:6px 9px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
   .wio-btn:hover{color:var(--ink);background:rgba(255,255,255,0.06);}
   .wio-btn.wio-copied{color:var(--good);}
+  .wio-btn.wio-btn-reset{color:var(--ink);}
+  .wio-btn.wio-btn-reset:hover{color:#fff;background:rgba(255,255,255,0.06);}
   .wio-divider{width:1px;flex:0 0 1px;background:var(--border-strong);}
 
   .ov-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:22px 24px;}
 
   .kpi-row{display:flex;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
-  @media (max-width:900px){.kpi-row{flex-direction:column;}}
+  /* Below 900px (this always includes the fixed 720px-wide window
+     html2canvas simulates for the PDF export — see PDF_CONTENT_W) a
+     single row of 4 tiles is too cramped, but a plain 1-column stack
+     wastes a lot of vertical space and reads as one endless list. A
+     2x2 grid keeps each tile roughly as wide as it was before while
+     halving the widget's height. Every .kpi-row always renders exactly
+     4 .kpi-tile children (see kpiTile() call sites), so the nth-child
+     selectors below can target corners directly. */
+  @media (max-width:900px){.kpi-row{display:grid;grid-template-columns:1fr 1fr;}}
   .kpi-tile{flex:1;padding:18px 20px;min-width:0;}
   .kpi-tile:not(:first-child){border-left:1px solid var(--border);}
-  @media (max-width:900px){.kpi-tile:not(:first-child){border-left:none;border-top:1px solid var(--border);}}
+  @media (max-width:900px){
+    .kpi-tile:nth-child(3){border-left:none;border-top:1px solid var(--border);}
+    .kpi-tile:nth-child(4){border-top:1px solid var(--border);}
+    /* Center each tile's label/value/callout once a standalone Key
+       Metrics-style widget (Overview's and Wasted Spend's own Key
+       Metrics — see ovKpiBody/wastedKpiRow) is actually laid out as a
+       2x2 grid — left alignment read oddly once each tile is only half
+       as wide. The Branded/Non-Branded Performance pair (.kpi-two-col-row)
+       is excluded and stays left-aligned. */
+    .kpi-tile{text-align:center;}
+    .kpi-two-col-row .kpi-tile{text-align:left;}
+  }
+  /* Genuinely tiny viewports (a real narrow phone, not just a resized
+     desktop window or the 720px PDF capture width): two tiles per row is
+     too little room for a value like "$1,678.60" next to its label and
+     stays legible instead as a plain 1-column stack, same as before this
+     2x2 layout existed. Back to left-aligned here too, since centering
+     was specifically about the 2x2 grid state above, not this fallback. */
+  @media (max-width:560px){
+    .kpi-row{grid-template-columns:1fr;}
+    .kpi-tile:not(:first-child){border-left:none;border-top:1px solid var(--border);}
+    .kpi-tile{text-align:left;}
+  }
   .kpi-tile .kpi-label{font-size:11px;text-transform:uppercase;letter-spacing:0.6px;color:var(--ink-muted);font-weight:600;margin-bottom:10px;}
   .kpi-tile .kpi-value{font-size:26px;font-weight:700;letter-spacing:-0.4px;}
   .kpi-tile .kpi-delta{font-size:12px;margin-top:6px;color:var(--ink-muted);}
@@ -1168,6 +1330,31 @@
   </div>
 </div>
 
+<div class="overlay hidden" id="additionalCalloutsModalOverlay">
+  <div class="modal modal-wide">
+    <h2>Generate Call-Outs</h2>
+    <p class="modal-sub">Select the key metrics you'd like PLTFRM to generate bullet-point callouts for on this page.</p>
+    <div class="split-btn metric-select-toolbar">
+      <button type="button" class="split-btn-seg" id="btnAdditionalCalloutsSelectAll">Select All</button>
+      <span class="split-divider"></span>
+      <button type="button" class="split-btn-seg" id="btnAdditionalCalloutsClearAll">Clear All</button>
+    </div>
+    <div class="metric-checkbox-list" id="additionalCalloutsMetricList"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" id="btnCancelAdditionalCallouts">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="btnConfirmAdditionalCallouts">Generate</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay pdf-export-overlay hidden" id="pdfExportOverlay" data-html2canvas-ignore="true">
+  <div class="pdf-loading-card">
+    <div class="pdf-loading-spinner"></div>
+    <div class="pdf-loading-title">Generating PDF&hellip;</div>
+    <div class="pdf-loading-sub">Putting together the full audit deck. This can take a few seconds.</div>
+  </div>
+</div>
+
 <!-- ================= APP ================= -->
 <div id="app" class="hidden">
   <div id="sidebar">
@@ -1182,7 +1369,7 @@
     <div class="sb-section-label">Contents</div>
     <ul class="nav-list" id="navList">
       <li class="nav-item active" data-tab="brandcheck"><span class="n-num">01</span> Brand Check</li>
-      <li class="nav-item" data-tab="overview"><span class="n-num">02</span> Overview</li>
+      <li class="nav-item" data-tab="overview"><span class="n-num">02</span> Ads Audit</li>
     </ul>
 
     <div class="sb-context">
@@ -1199,6 +1386,7 @@
   <div id="main">
     <!-- ---- Brand Check tab ---- -->
     <div class="tab-panel active" id="tab-brandcheck">
+      <div class="callouts-view" id="brandCheckMainView">
       <div class="page-header">
         <h1>Brand Check</h1>
         <p class="page-sub">Confirm which search terms are branded before running the performance breakdown. Phrase-match: a search term is branded if it contains any branded term as a substring.</p>
@@ -1278,19 +1466,28 @@
           </div>
         </div>
       </div>
+      </div>
+      <div class="callouts-view hidden" id="matchTypeCheckDetailView">
+        <button class="callout-back-btn" id="btnMatchTypeCheckBack">&larr; Back to Brand Check</button>
+        <div class="page-header">
+          <h1>Match Type Check</h1>
+          <p class="page-sub">Every row that didn't match a recognized targeting pattern (Match Type &ldquo;Other&rdquo;) &mdash; use this to spot-check Targeting values the audit couldn't classify.</p>
+        </div>
+        <div id="matchTypeCheckBody"></div>
+      </div>
     </div>
 
     <!-- ---- Overview tab (also hosts the former Call-outs sub-pages as children) ---- -->
     <div class="tab-panel" id="tab-overview">
       <div class="callouts-view" id="overviewMainView">
         <div class="page-header">
-          <h1>Overview</h1>
+          <h1 class="page-header-title-row"><span>PLTFRM Ads Audit</span><button type="button" class="page-header-icon-btn" id="btnExportFullPdf" title="Export the full audit as a PDF"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg><span class="page-header-icon-label">Export PDF</span></button></h1>
           <p class="page-sub">Branded vs. non-branded performance across the full Amazon Ads search term report, based on the current Brand Check classification.</p>
         </div>
         <div id="overviewContent"></div>
       </div>
       <div class="callouts-view hidden" id="calloutsDetailView">
-        <button class="callout-back-btn" id="btnCalloutBack">&larr; Back to Overview</button>
+        <button class="callout-back-btn" id="btnCalloutBack">&larr; Back to Ads Audit</button>
         <div class="page-header">
           <h1 id="calloutDetailTitle">&nbsp;</h1>
           <p class="page-sub" id="calloutDetailSub"></p>
@@ -1357,8 +1554,19 @@
     pendingPlusKey:null,
     pendingMatchType:'phrase',
     activeCalloutId:null,
+    activeBrandCheckSubpage:null, // null | 'matchTypeCheck' — Brand Check tab's own sub-page toggle, parallel to activeCalloutId on Overview
+    matchTypeCheckTable:{ page:0, pageSize:15, sortField:'spend', sortDir:'desc' },
     wastedTable:{ page:0, pageSize:7, sortField:'wasted', sortDir:'desc' },
     wastedCallouts:{ threshold:20 },
+    // "Additional Callouts" widget state — one entry per page it appears on
+    // (Ads Audit / Branded vs. Non-Branded / Match Type Performance). Each
+    // page independently tracks which metrics the user picked and whether
+    // they've generated callouts yet (blank state until they do).
+    additionalCallouts:{
+      overview:             { selectedMetrics:[], generated:false },
+      brandedNonBranded:    { selectedMetrics:[], generated:false },
+      matchTypePerformance: { selectedMetrics:[], generated:false }
+    },
     collapsedWidgets:new Set(),
     headers:{ ads:[], catalog:[] },
     mapping:{ ads:{}, catalog:{} },
@@ -1401,6 +1609,7 @@
   var ICON_CAMERA = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>';
   var ICON_CSV = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect></svg>';
   var ICON_CLIPBOARD = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path></svg>';
+  var ICON_RESET = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"></path><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>';
 
   function brandSlug(){
     return (state.brandName||'audit').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'') || 'audit';
@@ -1408,7 +1617,7 @@
 
   function saveBlobToUserLocation(blob, suggestedName, pickerType){
     if(window.showSaveFilePicker){
-      window.showSaveFilePicker({ suggestedName: suggestedName, types:[pickerType] }).then(function(handle){
+      return window.showSaveFilePicker({ suggestedName: suggestedName, types:[pickerType] }).then(function(handle){
         return handle.createWritable().then(function(writable){
           return writable.write(blob).then(function(){ return writable.close(); });
         });
@@ -1418,6 +1627,7 @@
       });
     } else {
       downloadBlobClassic(blob, suggestedName);
+      return Promise.resolve();
     }
   }
   function downloadBlobClassic(blob, suggestedName){
@@ -1468,6 +1678,216 @@
     var csv = lines.join('\r\n')+'\r\n';
     var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
     saveBlobToUserLocation(blob, brandSlug()+'-'+filenameSlug+'.csv', { description:'CSV file', accept:{'text/csv':['.csv']} });
+  }
+
+  /* =========================================================
+     FULL AUDIT PDF EXPORT — combines the Ads Audit overview page and
+     every Call-outs sub-page (Wasted Spend, Branded vs. Non-Branded,
+     Match Type Performance, Non-Converting Search Results, New Targets)
+     into a single 8.5x11" portrait PDF, in that order, with a thin
+     separator line between sections. Reuses the same html2canvas engine
+     as the individual widget PNG export above, but drives it with a
+     narrower simulated viewport (windowWidth below) so the app's own
+     existing responsive breakpoints (the same ones that already collapse
+     multi-column rows to a single column on a phone-width screen) kick
+     in and lay everything out cleanly at print width, instead of
+     cramming the wide desktop layout into a portrait page.
+  ========================================================= */
+  var PDF_PAGE_W = 816;    // 8.5in @ 96dpi
+  var PDF_PAGE_H = 1056;   // 11in @ 96dpi
+  var PDF_MARGIN = 48;
+  var PDF_CONTENT_W = PDF_PAGE_W - PDF_MARGIN*2; // 720 — also the simulated print viewport width
+  var PDF_CONTENT_H = PDF_PAGE_H - PDF_MARGIN*2; // 960
+  var PDF_PAGE_BG_RGB = [5,7,11];                // matches --page
+  var PDF_SEP_RGB = [58,60,68];                   // matches --border-strong
+  var PDF_CAPTURE_SCALE = 2;
+  var PDF_SEP_GAP = 14; // space above the separator rule, at the end of a section
+  var PDF_WIDGET_GAP = 28; // vertical breathing room between stacked widgets — matches .ov-widget's own margin-bottom in the live app, which a per-widget screenshot otherwise strips out
+
+  function pdfSleep(ms){ return new Promise(function(res){ setTimeout(res, ms); }); }
+
+  // The atomic capture units for one page: its <h1>/subtitle header, plus
+  // every top-level "-widget" block in document order (every widget on
+  // every page that hosts one — Key Metrics, a chart, a table, Generated
+  // Call-Outs, Additional Call-Outs, etc. — ends its own outer wrapper's
+  // id in "-widget", even where it isn't also tagged class="ov-widget").
+  // Capturing (and therefore page-breaking) at this granularity, rather
+  // than one screenshot per whole page, is what lets the PDF assembly
+  // step below guarantee a widget is never split by a page break unless
+  // it's genuinely taller than a full page on its own. Nested "-widget"
+  // matches (there aren't any today, but a future widget-inside-a-widget
+  // shouldn't silently double-capture) are filtered down to only the
+  // outermost element. The Additional Call-Outs widget is always in the
+  // DOM (even blank, as a clickable "start here" dropzone) — it's only
+  // kept here when the user actually generated call-outs on that page.
+  function pdfCollectAtomicBlocks(root, pageKey){
+    var blocks = [];
+    var header = root.querySelector('.page-header');
+    if(header) blocks.push(header);
+    var candidates = Array.prototype.slice.call(root.querySelectorAll('[id$="-widget"]'));
+    var top = candidates.filter(function(el){
+      return !candidates.some(function(other){ return other!==el && other.contains(el); });
+    });
+    top = top.filter(function(el){
+      if(el.id !== 'addlCallouts-'+pageKey+'-widget') return true;
+      var cfg = state.additionalCallouts && state.additionalCallouts[pageKey];
+      return !!(cfg && cfg.generated && cfg.selectedMetrics.length);
+    });
+    return blocks.concat(top);
+  }
+
+  function pdfCaptureElement(el){
+    return html2canvas(el, {
+      backgroundColor: 'rgb('+PDF_PAGE_BG_RGB.join(',')+')',
+      scale: PDF_CAPTURE_SCALE,
+      windowWidth: PDF_CONTENT_W,
+      windowHeight: 1200
+    });
+  }
+
+  function pdfShowLoadingOverlay(show){
+    var el = document.getElementById('pdfExportOverlay');
+    if(el) el.classList.toggle('hidden', !show);
+  }
+
+  function exportFullAuditPdf(){
+    if(typeof html2canvas==='undefined' || !window.jspdf || !window.jspdf.jsPDF){
+      alert('PDF export isn\'t available right now — please try again in a moment.');
+      return;
+    }
+    var btn = document.getElementById('btnExportFullPdf');
+    if(btn) btn.disabled = true;
+    pdfShowLoadingOverlay(true);
+    document.body.classList.add('pdf-export-mode');
+
+    var savedCollapsed = state.collapsedWidgets;
+    state.collapsedWidgets = new Set(); // force every widget open for the capture
+
+    var sections = [{ id:null, pageKey:'overview' }].concat(CALLOUT_DEFS.map(function(def){
+      return { id:def.id, pageKey:def.id };
+    }));
+
+    var doc = new window.jspdf.jsPDF({ unit:'px', format:[PDF_PAGE_W, PDF_PAGE_H], orientation:'portrait', hotfixes:['px_scaling'] });
+    var usedHeight = 0;
+    var pageBgPainted = false;
+
+    function paintPageBg(){
+      doc.setFillColor(PDF_PAGE_BG_RGB[0], PDF_PAGE_BG_RGB[1], PDF_PAGE_BG_RGB[2]);
+      doc.rect(0, 0, PDF_PAGE_W, PDF_PAGE_H, 'F');
+    }
+    function startNewPage(){
+      doc.addPage();
+      paintPageBg();
+      usedHeight = 0;
+    }
+
+    // Adds one atomic block's canvas. gapBefore (0 for the first widget of
+    // a section, PDF_WIDGET_GAP for every widget after it) reproduces the
+    // breathing room the live app already puts between stacked widgets —
+    // capturing each widget cropped tightly to its own box otherwise loses
+    // that margin entirely, which is what made adjacent widgets look
+    // jammed together with no separation. A block that fits within a full
+    // page is NEVER split across a page boundary — if it doesn't fit in
+    // what's left of the current page, a new page starts first. Only a
+    // block taller than an entire page on its own (a very long table, say)
+    // falls back to being sliced across pages, since there's no way to
+    // avoid splitting it either way.
+    function addAtomicCanvas(canvas, gapBefore){
+      if(!pageBgPainted){ paintPageBg(); pageBgPainted = true; }
+      var widthCss = canvas.width / PDF_CAPTURE_SCALE;
+      var heightCss = canvas.height / PDF_CAPTURE_SCALE;
+      // Captured at the same simulated print viewport width for every
+      // block, but a stubborn element (a many-column table that won't
+      // compress below its intrinsic content width, say) can still come
+      // out wider than that — scale uniformly so it always exactly fits
+      // the page's content column, and do all placement math in that
+      // already-scaled ("placed") space.
+      var scaleToPage = PDF_CONTENT_W / widthCss;
+      var heightPlaced = heightCss * scaleToPage;
+
+      if(gapBefore && usedHeight > 0) usedHeight += gapBefore;
+
+      if(heightPlaced <= PDF_CONTENT_H){
+        if(heightPlaced > PDF_CONTENT_H - usedHeight) startNewPage();
+        doc.addImage(canvas.toDataURL('image/png'), 'PNG', PDF_MARGIN, PDF_MARGIN+usedHeight, PDF_CONTENT_W, heightPlaced);
+        usedHeight += heightPlaced;
+        return;
+      }
+
+      // Taller than a full page by itself — slice it across as many
+      // pages as it needs (unavoidable either way).
+      var syPlaced = 0;
+      while(syPlaced < heightPlaced){
+        var remaining = PDF_CONTENT_H - usedHeight;
+        if(remaining < 24){ startNewPage(); remaining = PDF_CONTENT_H; }
+        var chunkHPlaced = Math.min(remaining, heightPlaced - syPlaced);
+        var srcY = Math.round((syPlaced/scaleToPage)*PDF_CAPTURE_SCALE);
+        var srcH = Math.max(1, Math.round((chunkHPlaced/scaleToPage)*PDF_CAPTURE_SCALE));
+        var tmp = document.createElement('canvas');
+        tmp.width = canvas.width;
+        tmp.height = srcH;
+        tmp.getContext('2d').drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
+        doc.addImage(tmp.toDataURL('image/png'), 'PNG', PDF_MARGIN, PDF_MARGIN+usedHeight, PDF_CONTENT_W, chunkHPlaced);
+        usedHeight += chunkHPlaced;
+        syPlaced += chunkHPlaced;
+      }
+    }
+
+    function goToSection(s){
+      if(s.id===null){ showOverviewMain(); return document.getElementById('overviewMainView'); }
+      showCalloutDetail(s.id);
+      return document.getElementById('calloutsDetailView');
+    }
+
+    // Each Key Point/section gets its own page(s) — cleaner than letting
+    // sections share a page. The separator line still marks the end of a
+    // section, but now it caps off the last widget right before the hard
+    // page break to the next section, instead of sitting at the top of
+    // the next one. The very last section has nothing after it, so it
+    // gets no trailing line or forced page.
+    function endSection(isLastSection){
+      if(!isLastSection && usedHeight > 0){
+        var sepY = PDF_MARGIN + usedHeight + PDF_SEP_GAP;
+        doc.setDrawColor(PDF_SEP_RGB[0], PDF_SEP_RGB[1], PDF_SEP_RGB[2]);
+        doc.setLineWidth(1);
+        doc.line(PDF_MARGIN, sepY, PDF_MARGIN+PDF_CONTENT_W, sepY);
+      }
+      if(!isLastSection) startNewPage();
+    }
+
+    var chain = Promise.resolve();
+    sections.forEach(function(s, sIdx){
+      var isLastSection = sIdx === sections.length-1;
+      chain = chain.then(function(){
+        var root = goToSection(s);
+        var blocks = pdfCollectAtomicBlocks(root, s.pageKey);
+        return pdfSleep(50).then(function(){
+          var blockChain = Promise.resolve();
+          blocks.forEach(function(el, idx){
+            blockChain = blockChain.then(function(){
+              return pdfCaptureElement(el).then(function(canvas){
+                if(canvas.width>0 && canvas.height>0) addAtomicCanvas(canvas, idx===0 ? 0 : PDF_WIDGET_GAP);
+              });
+            });
+          });
+          return blockChain.then(function(){ endSection(isLastSection); });
+        });
+      });
+    });
+
+    chain.then(function(){
+      var blob = doc.output('blob');
+      return saveBlobToUserLocation(blob, brandSlug()+'-full-audit.pdf', { description:'PDF document', accept:{'application/pdf':['.pdf']} });
+    }).catch(function(err){
+      console.error(err);
+      alert('Something went wrong exporting the full audit PDF.');
+    }).then(function(){
+      state.collapsedWidgets = savedCollapsed;
+      document.body.classList.remove('pdf-export-mode');
+      showOverviewMain();
+      pdfShowLoadingOverlay(false);
+      if(btn) btn.disabled = false;
+    });
   }
 
   // Copies a widget's content to the clipboard as rich text (bold/italic/
@@ -1610,7 +2030,8 @@
     {key:'adProduct',   label:'Ad Product',            standard:['ad product','product'],       required:false},
     {key:'targetingMatchType', label:'Targeting Match Type', standard:['targeting match type'], required:false},
     {key:'targeting',          label:'Targeting',            standard:['targeting'],            required:false},
-    {key:'advertisedProductId', label:'Advertised Product ID', standard:['advertised product id'], required:false}
+    {key:'advertisedProductId', label:'Advertised Product ID', standard:['advertised product id'], required:false},
+    {key:'campaign',           label:'Campaign',             standard:['campaign name','campaign'], required:false}
   ];
   var CATALOG_FIELDS = [
     {key:'parentAsin', label:'Parent ASIN',    standard:['(parent) asin','parent asin'], required:true},
@@ -1667,7 +2088,8 @@
         {key:'sales',              label:'Sales (Revenue)',       standard:['7 day total sales','14 day total sales'], required:true},
         {key:'purchases',          label:'Orders (Purchases)',    standard:['7 day total orders (#)','14 day total orders (#)'], required:true},
         {key:'targetingMatchType', label:'Targeting Match Type',  standard:['match type'], required:false},
-        {key:'targeting',          label:'Targeting',             standard:['targeting'], required:false}
+        {key:'targeting',          label:'Targeting',             standard:['targeting'], required:false},
+        {key:'campaign',           label:'Campaign',              standard:['campaign name','campaign'], required:false}
       ]
     },
     sb:{
@@ -1681,7 +2103,8 @@
         {key:'sales',              label:'Sales (Revenue)',       standard:['14 day total sales'], required:true},
         {key:'purchases',          label:'Orders (Purchases)',    standard:['14 day total orders (#)'], required:true},
         {key:'targetingMatchType', label:'Targeting Match Type',  standard:['match type'], required:false},
-        {key:'targeting',          label:'Targeting',             standard:['targeting'], required:false}
+        {key:'targeting',          label:'Targeting',             standard:['targeting'], required:false},
+        {key:'campaign',           label:'Campaign',              standard:['campaign name','campaign'], required:false}
       ]
     },
     sd:{
@@ -1693,7 +2116,8 @@
         {key:'cost',         label:'Ad Spend (Cost)',     standard:['spend'], required:true},
         {key:'sales',        label:'Sales (Revenue)',     standard:['14 day total sales'], required:true},
         {key:'purchases',    label:'Orders (Purchases)',  standard:['14 day total orders (#)'], required:true},
-        {key:'targeting',    label:'Targeting',           standard:['targeting'], required:false}
+        {key:'targeting',    label:'Targeting',           standard:['targeting'], required:false},
+        {key:'campaign',     label:'Campaign',            standard:['campaign name','campaign'], required:false}
       ]
     }
   };
@@ -1824,7 +2248,8 @@
         purchases: mapping.purchases ? r[mapping.purchases] : '',
         adProduct: adProduct,
         targetingMatchType: mapping.targetingMatchType ? (r[mapping.targetingMatchType]||'') : '',
-        targeting: mapping.targeting ? (r[mapping.targeting]||'') : ''
+        targeting: mapping.targeting ? (r[mapping.targeting]||'') : '',
+        campaign: mapping.campaign ? (r[mapping.campaign]||'') : ''
       };
     });
   }
@@ -1837,7 +2262,7 @@
     term:'term', impressions:'impressions', clicks:'clicks', cost:'cost',
     sales:'sales', purchases:'purchases', adProduct:'adProduct',
     targetingMatchType:'targetingMatchType', targeting:'targeting',
-    advertisedProductId:null
+    advertisedProductId:null, campaign:'campaign'
   };
 
   /* =========================================================
@@ -2344,7 +2769,7 @@
       if(state.str[kind].ready && state.str[kind].rows) merged = merged.concat(state.str[kind].rows);
     });
     state.adsRows = merged;
-    state.headers.ads = ['term','impressions','clicks','cost','sales','purchases','adProduct','targetingMatchType','targeting'];
+    state.headers.ads = ['term','impressions','clicks','cost','sales','purchases','adProduct','targetingMatchType','targeting','campaign'];
     state.mapping.ads = STR_IDENTITY_ADS_MAPPING;
     state.mappingResolved.ads = true;
     state.adsFile = { name: ['sp','sb','sd'].filter(function(k){ return state.str[k].ready; }).map(function(k){ return STR_REPORT_SPECS[k].label; }).join(' + ') };
@@ -3106,6 +3531,10 @@
       var sub = document.querySelector('.nav-subitem[data-callout="'+state.activeCalloutId+'"]');
       if(sub){ sub.classList.add('active'); return; }
     }
+    if(tab==='brandcheck' && state.activeBrandCheckSubpage){
+      var subBc = document.querySelector('.nav-subitem[data-subpage="'+state.activeBrandCheckSubpage+'"]');
+      if(subBc){ subBc.classList.add('active'); return; }
+    }
     var item = document.querySelector('.nav-item[data-tab="'+tab+'"]');
     if(item) item.classList.add('active');
   }
@@ -3113,8 +3542,14 @@
   document.getElementById('navList').addEventListener('click', function(e){
     var subItem = e.target.closest('.nav-subitem');
     if(subItem){
-      activateTab('overview');
-      showCalloutDetail(subItem.getAttribute('data-callout'));
+      var subTab = subItem.getAttribute('data-tab');
+      if(subTab==='overview'){
+        activateTab('overview');
+        showCalloutDetail(subItem.getAttribute('data-callout'));
+      } else if(subTab==='brandcheck'){
+        activateTab('brandcheck');
+        showMatchTypeCheckDetail();
+      }
       return;
     }
     var item = e.target.closest('.nav-item');
@@ -3122,6 +3557,7 @@
     var tab = item.getAttribute('data-tab');
     activateTab(tab);
     if(tab==='overview') showOverviewMain();
+    else if(tab==='brandcheck') showBrandCheckMain();
     updateNavActiveState();
   });
 
@@ -3657,6 +4093,71 @@
     else state.collapsedWidgets.delete(targetId);
   });
 
+  // ---------------------------------------------------------
+  // Additional Callouts modal — the metric-picker shared by all three
+  // pages that host an Additional Callouts widget (Ads Audit / Branded vs.
+  // Non-Branded / Match Type Performance). Opened via a delegated click on
+  // any [data-addl-callouts-open] element (the blank-state panel itself,
+  // or the header's Reset button once callouts exist — each carries the
+  // page key it belongs to), since those elements live inside innerHTML
+  // that gets rebuilt on every render rather than being static markup.
+  // ---------------------------------------------------------
+  var additionalCalloutsModalOverlay = document.getElementById('additionalCalloutsModalOverlay');
+  var additionalCalloutsModalPageKey = null;
+
+  function openAdditionalCalloutsModal(pageKey){
+    additionalCalloutsModalPageKey = pageKey;
+    var cfg = state.additionalCallouts[pageKey];
+    var selected = {};
+    (cfg.selectedMetrics||[]).forEach(function(k){ selected[k] = true; });
+    document.getElementById('additionalCalloutsMetricList').innerHTML = CALLOUT_METRIC_DEFS.map(function(def){
+      return '<label class="metric-checkbox-item">'+
+        '<input type="checkbox" value="'+def.key+'"'+(selected[def.key] ? ' checked' : '')+'>'+
+        '<span>'+esc(def.label)+'</span>'+
+      '</label>';
+    }).join('');
+    additionalCalloutsModalOverlay.classList.remove('hidden');
+  }
+  function closeAdditionalCalloutsModal(){
+    additionalCalloutsModalOverlay.classList.add('hidden');
+    additionalCalloutsModalPageKey = null;
+  }
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest('[data-addl-callouts-open]');
+    if(!btn) return;
+    openAdditionalCalloutsModal(btn.getAttribute('data-addl-callouts-open'));
+  });
+  // The blank-state panel is a <div role="button"> (not a real <button>,
+  // since it houses block-level dropzone-style markup), so it needs its
+  // own Enter/Space handling — a real <button> (the header's Reset)
+  // already fires a native click on both keys, so this is skipped for it
+  // to avoid opening the modal twice.
+  document.addEventListener('keydown', function(e){
+    if(e.key!=='Enter' && e.key!==' ') return;
+    var el = e.target.closest('[data-addl-callouts-open]');
+    if(!el || el.tagName==='BUTTON') return;
+    e.preventDefault();
+    openAdditionalCalloutsModal(el.getAttribute('data-addl-callouts-open'));
+  });
+  document.getElementById('btnCancelAdditionalCallouts').addEventListener('click', closeAdditionalCalloutsModal);
+  document.getElementById('btnAdditionalCalloutsSelectAll').addEventListener('click', function(){
+    document.querySelectorAll('#additionalCalloutsMetricList input[type="checkbox"]').forEach(function(el){ el.checked = true; });
+  });
+  document.getElementById('btnAdditionalCalloutsClearAll').addEventListener('click', function(){
+    document.querySelectorAll('#additionalCalloutsMetricList input[type="checkbox"]').forEach(function(el){ el.checked = false; });
+  });
+  document.getElementById('btnConfirmAdditionalCallouts').addEventListener('click', function(){
+    var pageKey = additionalCalloutsModalPageKey;
+    if(!pageKey) return;
+    var checked = Array.prototype.slice.call(document.querySelectorAll('#additionalCalloutsMetricList input[type="checkbox"]:checked')).map(function(el){ return el.value; });
+    state.additionalCallouts[pageKey].selectedMetrics = checked;
+    // Confirming with nothing checked (e.g. after Clear All) resets this
+    // page's widget back to its default blank state.
+    state.additionalCallouts[pageKey].generated = checked.length>0;
+    closeAdditionalCalloutsModal();
+    renderAll();
+  });
+
   /* =========================================================
      RENDER: OVERVIEW
   ========================================================= */
@@ -3742,7 +4243,9 @@
 
     var keyPointsHtml = calloutsListHtml();
 
-    document.getElementById('overviewContent').innerHTML = kpiHtml + tableHtml + barsHtml + keyPointsHtml + insightsHtml;
+    var additionalCalloutsHtml = renderAdditionalCalloutsWidget('overview');
+
+    document.getElementById('overviewContent').innerHTML = kpiHtml + tableHtml + barsHtml + keyPointsHtml + insightsHtml + additionalCalloutsHtml;
   }
 
   function kpiTile(label, value, delta, tone){
@@ -4194,6 +4697,36 @@
     return { byType:byType, total:total, leadType:leadType };
   }
 
+  // Every row classifyMatchType() couldn't place into a recognized match
+  // type, grouped by (Targeting, Search Term) pair and summed — feeds the
+  // Brand Check tab's "Match Type Check" sub-page (see
+  // renderMatchTypeCheckDetail), which exists specifically so an odd/
+  // unrecognized Targeting value doesn't just silently disappear into
+  // Wasted Spend or the match-type charts' Other bucket with no way to
+  // see the underlying rows.
+  function computeMatchTypeOtherRows(){
+    var m = state.mapping.ads;
+    var agg = new Map(); // "targeting|term|campaign" (lowercased) -> {targeting, term, campaign, impressions, clicks, spend, revenue, orders, wasted}
+    state.adsRows.forEach(function(r){
+      if(classifyMatchType(r, m)!=='OTHER') return;
+      var term = (r[m.term]||'').trim();
+      var targeting = (m.targeting && r[m.targeting]) ? String(r[m.targeting]).trim() : '';
+      var campaign = (m.campaign && r[m.campaign]) ? String(r[m.campaign]).trim() : '';
+      var key = targeting.toLowerCase()+'|'+term.toLowerCase()+'|'+campaign.toLowerCase();
+      var a = agg.get(key);
+      if(!a){ a = {targeting:targeting, term:term, campaign:campaign, impressions:0, clicks:0, spend:0, revenue:0, orders:0, wasted:0}; agg.set(key,a); }
+      var cost = num(r[m.cost]);
+      var sales = num(r[m.sales]);
+      a.impressions += num(r[m.impressions]);
+      a.clicks += num(r[m.clicks]);
+      a.spend += cost;
+      a.revenue += sales;
+      a.orders += num(r[m.purchases]);
+      if(sales<=0 && cost>0) a.wasted += cost;
+    });
+    return Array.from(agg.values());
+  }
+
   // Returns whichever named match type (excluding OTHER, and excluding any
   // type listed in `exclude`) has the single highest value for the given
   // numeric field on mt.byType[type] — used to pick the dynamic match type
@@ -4208,6 +4741,505 @@
       if(v>bestVal){ bestVal = v; best = t; }
     });
     return best;
+  }
+
+  /* =========================================================
+     ADDITIONAL CALLOUTS — a user-driven, opt-in narrative widget that
+     appears at the bottom of three pages: Ads Audit (main Overview),
+     Branded vs. Non-Branded, and Match Type Performance. The user picks
+     any of 10 standard metrics from a modal, and one bullet is generated
+     per selected metric, framed around that page's natural comparison
+     dimension (Ad Product / Branded vs. Non-Branded / Match Type).
+  ========================================================= */
+  // goodDirection tells the insight-clause generator below which way is
+  // "winning" for that metric: 'high' (impressions/clicks/CTR/revenue/
+  // ROAS/orders/CVR — more is a strength), 'low' (Wasted Spend/CPC — more
+  // is a pain point, less is the benchmark to hold others to), or
+  // 'neutral' (Ad Spend — a resource-allocation fact, not a performance
+  // signal on its own).
+  var CALLOUT_METRIC_DEFS = [
+    {key:'impressions', label:'Impressions',   format:'int',      kind:'magnitude', goodDirection:'high'},
+    {key:'clicks',       label:'Clicks',        format:'int',      kind:'magnitude', goodDirection:'high'},
+    {key:'ctr',          label:'CTR',           format:'pct',      kind:'rate', denominator:'impressions', goodDirection:'high'},
+    {key:'wasted',       label:'Wasted Spend',  format:'currency', kind:'magnitude', goodDirection:'low'},
+    {key:'spend',        label:'Ad Spend',      format:'currency', kind:'magnitude', goodDirection:'neutral'},
+    {key:'cpc',          label:'CPC',           format:'currency', kind:'rate', denominator:'clicks', goodDirection:'low'},
+    {key:'revenue',      label:'Revenue',       format:'currency', kind:'magnitude', goodDirection:'high'},
+    {key:'roas',         label:'ROAS',          format:'ratio',    kind:'rate', denominator:'spend', goodDirection:'high'},
+    {key:'orders',       label:'Orders',        format:'int',      kind:'magnitude', goodDirection:'high'},
+    {key:'cvr',          label:'CVR',           format:'pct',      kind:'rate', denominator:'clicks', goodDirection:'high'}
+  ];
+  var CALLOUT_METRIC_DEFS_BY_KEY = {};
+  CALLOUT_METRIC_DEFS.forEach(function(d){ CALLOUT_METRIC_DEFS_BY_KEY[d.key] = d; });
+
+  function formatCalloutMetricValue(def, val){
+    val = num(val);
+    if(def.format==='int') return fmtInt(val);
+    if(def.format==='currency') return fmtCurrency(val);
+    if(def.format==='pct') return fmtPct(val);
+    if(def.format==='ratio') return fmtRatio(val);
+    return String(val);
+  }
+  function round1(n){ return Math.round(n*10)/10; }
+  // Human-readable magnitude of how much the leader beats the runner-up by,
+  // in whichever unit makes sense for the metric's format — percentage
+  // points for rate-as-percent metrics (CTR/CVR), "x" for ROAS, and a
+  // relative percentage for everything else (Impressions/Clicks/Spend/
+  // Revenue/Orders/CPC/Wasted Spend). Returns null when a relative
+  // percentage can't be meaningfully computed (the smaller value is 0).
+  function formatCalloutMetricDelta(def, leaderVal, otherVal){
+    if(def.format==='pct'){
+      var pts = round1(Math.abs(leaderVal-otherVal)*100);
+      return pts+' percentage point'+(pts===1?'':'s');
+    }
+    if(def.format==='ratio'){
+      var d = round1(Math.abs(leaderVal-otherVal));
+      return d+'x';
+    }
+    if(otherVal>0){
+      var pct = round1(Math.abs((leaderVal-otherVal)/otherVal)*100);
+      return pct+'%';
+    }
+    return null;
+  }
+  // Turns a raw {impressions, clicks, spend, revenue, orders, wasted}
+  // accumulator into the full metric set every Additional Callouts bucket
+  // exposes (adding the four derived rate metrics: CTR, CPC, ROAS, CVR).
+  function computeCalloutMetricBucket(acc){
+    return {
+      impressions: acc.impressions,
+      clicks: acc.clicks,
+      ctr: acc.impressions ? acc.clicks/acc.impressions : 0,
+      wasted: acc.wasted,
+      spend: acc.spend,
+      cpc: acc.clicks ? acc.spend/acc.clicks : 0,
+      revenue: acc.revenue,
+      roas: acc.spend ? acc.revenue/acc.spend : 0,
+      orders: acc.orders,
+      cvr: acc.clicks ? acc.orders/acc.clicks : 0
+    };
+  }
+  function calloutBucketIsActive(m){
+    return m.impressions>0 || m.clicks>0 || m.spend>0 || m.revenue>0 || m.orders>0;
+  }
+  // Sums every bucket's raw components (not their already-derived rates,
+  // which can't be averaged directly) and re-derives the rates from the
+  // pooled totals — gives the correct "across the whole dimension" figure
+  // for two things: a magnitude metric's grand total (used to express a
+  // leader's share of it) and a rate metric's true blended average (used
+  // as the comparison point instead of naming a 2nd/3rd-place bucket).
+  function sumCalloutBuckets(buckets){
+    var acc = {impressions:0, clicks:0, spend:0, revenue:0, orders:0, wasted:0};
+    buckets.forEach(function(b){
+      acc.impressions += b.metrics.impressions;
+      acc.clicks += b.metrics.clicks;
+      acc.spend += b.metrics.spend;
+      acc.revenue += b.metrics.revenue;
+      acc.orders += b.metrics.orders;
+      acc.wasted += b.metrics.wasted;
+    });
+    return computeCalloutMetricBucket(acc);
+  }
+
+  // Ads Audit page's comparison dimension: Ad Product (Sponsored Products /
+  // Sponsored Brands / Sponsored Display). Reuses the same per-row Ad
+  // Product grouping convention as computeAdProductBreakdown (blank ad
+  // product defaults to Sponsored Products) but tracks the full metric set.
+  function computeAdProductCalloutBuckets(){
+    var m = state.mapping.ads;
+    var order = ['Sponsored Products','Sponsored Brands','Sponsored Display'];
+    var acc = {};
+    order.forEach(function(name){ acc[name] = {impressions:0, clicks:0, spend:0, revenue:0, orders:0, wasted:0}; });
+    state.adsRows.forEach(function(r){
+      var cost = num(r[m.cost]);
+      var sales = num(r[m.sales]);
+      var product = (m.adProduct && r[m.adProduct]) ? String(r[m.adProduct]).trim() : '';
+      if(!product || !acc[product]) product = 'Sponsored Products';
+      var a = acc[product];
+      a.impressions += num(r[m.impressions]);
+      a.clicks += num(r[m.clicks]);
+      a.spend += cost;
+      a.revenue += sales;
+      a.orders += num(r[m.purchases]);
+      if(sales<=0 && cost>0) a.wasted += cost;
+    });
+    return order.map(function(name){ return {key:name, label:name, metrics:computeCalloutMetricBucket(acc[name])}; });
+  }
+
+  // Branded vs. Non-Branded page's comparison dimension: a fixed two-way
+  // split, always returned in this order (Branded, Non-Branded) so the
+  // narrative template can address them consistently. Uses the same
+  // branded classification convention as computeBrandedNonBrandedDetail.
+  function computeBrandedNonBrandedCalloutBuckets(){
+    var m = state.mapping.ads;
+    var acc = {
+      branded:{impressions:0, clicks:0, spend:0, revenue:0, orders:0, wasted:0},
+      nonbranded:{impressions:0, clicks:0, spend:0, revenue:0, orders:0, wasted:0}
+    };
+    state.adsRows.forEach(function(r){
+      var cost = num(r[m.cost]);
+      var sales = num(r[m.sales]);
+      var term = (r[m.term]||'').trim();
+      var targeting = (m.targeting && r[m.targeting]) ? String(r[m.targeting]).trim() : '';
+      var isBrandedRow = isRemarketingAudienceTargeting(targeting) ? true : (term ? isTermBranded(term.toLowerCase()) : false);
+      var a = isBrandedRow ? acc.branded : acc.nonbranded;
+      a.impressions += num(r[m.impressions]);
+      a.clicks += num(r[m.clicks]);
+      a.spend += cost;
+      a.revenue += sales;
+      a.orders += num(r[m.purchases]);
+      if(sales<=0 && cost>0) a.wasted += cost;
+    });
+    return [
+      {key:'branded', label:'Branded', metrics:computeCalloutMetricBucket(acc.branded)},
+      {key:'nonbranded', label:'Non-Branded', metrics:computeCalloutMetricBucket(acc.nonbranded)}
+    ];
+  }
+
+  // Match Type Performance page's comparison dimension: every real
+  // targeting-strategy match type (excludes OTHER, same rationale as
+  // matchTypeLeaderBy above — OTHER is a diagnostic catch-all, not a
+  // targeting strategy worth comparing against the rest).
+  function computeMatchTypeCalloutBuckets(){
+    var m = state.mapping.ads;
+    var acc = {};
+    MATCH_TYPE_ORDER.forEach(function(t){ if(t!=='OTHER') acc[t] = {impressions:0, clicks:0, spend:0, revenue:0, orders:0, wasted:0}; });
+    state.adsRows.forEach(function(r){
+      var type = classifyMatchType(r, m);
+      if(type==='OTHER') return;
+      var cost = num(r[m.cost]);
+      var sales = num(r[m.sales]);
+      var a = acc[type];
+      a.impressions += num(r[m.impressions]);
+      a.clicks += num(r[m.clicks]);
+      a.spend += cost;
+      a.revenue += sales;
+      a.orders += num(r[m.purchases]);
+      if(sales<=0 && cost>0) a.wasted += cost;
+    });
+    return MATCH_TYPE_ORDER.filter(function(t){ return t!=='OTHER'; }).map(function(t){
+      return {key:t, label:matchTypeLabel(t), metrics:computeCalloutMetricBucket(acc[t])};
+    });
+  }
+
+  function calloutHlMetric(label){ return '<b class="ac-hl-metric">'+esc(label)+'</b>'; }
+  function calloutHlEntity(label){ return '<b class="ac-hl-entity">'+esc(label)+'</b>'; }
+
+  // Second sentence for each generated callout — the analyst's read on
+  // what the gap actually means, written the way a confident Amazon Ads
+  // specialist would flag it to a client: naming the strong lead worth
+  // leaning into, or the pain point worth fixing before scaling spend.
+  // `subject` is always the raw metric leader (highlighted); `bench` is
+  // whichever bucket should be read as the efficiency benchmark — for
+  // goodDirection:'low' metrics (Wasted Spend/CPC) that's the LOWEST
+  // bucket (the leader there is the pain point, not the win), otherwise
+  // it's the runner-up.
+  var CALLOUT_METRIC_INSIGHTS = {
+    impressions: function(subject, bench){
+      return 'That reach advantage is worth digging into — is '+subject+' capturing genuinely broader top-of-funnel demand, or is spend simply concentrated there by default while other opportunities go underexplored?';
+    },
+    clicks: function(subject, bench){
+      return 'More raw engagement on '+subject+' means more shots at conversion — worth confirming the landing experience and offer there are actually tuned to capture that traffic before assuming it is outperforming.';
+    },
+    ctr: function(subject, bench){
+      return 'A CTR edge like this usually points to stronger ad relevance, creative, or query match on '+subject+' — a strong lead worth studying and replicating elsewhere in the account.';
+    },
+    wasted: function(subject, bench){
+      return subject+'’s wasted spend is the clearer pain point here — tightening negative keywords or targeting there before adding more budget would protect margin, using '+bench+'’s comparatively tighter waste rate as the benchmark.';
+    },
+    spend: function(subject, bench){
+      return 'That reflects where budget is currently concentrated, not necessarily where it performs best — worth cross-checking against ROAS and CVR before treating this allocation as optimal.';
+    },
+    cpc: function(subject, bench){
+      return subject+'’s higher cost-per-click signals more competitive or less efficient bidding there — a strong candidate for a bid and match-type review, with '+bench+'’s lower cost as the target.';
+    },
+    revenue: function(subject, bench){
+      return subject+' is the clearer revenue engine right now, and that should carry real weight in how incremental budget gets prioritized going forward.';
+    },
+    roas: function(subject, bench){
+      return 'This is one of the stronger signals in the account for where to lean in — '+subject+' is converting ad spend into revenue meaningfully more efficiently, and looks like the strongest lead for additional investment.';
+    },
+    orders: function(subject, bench){
+      return subject+' is driving the bulk of conversions in raw volume, making it the safer near-term bet for incremental budget, provided its CVR and ROAS hold up as spend scales.';
+    },
+    cvr: function(subject, bench){
+      return 'A conversion-rate edge like this usually reflects stronger purchase intent or a tighter query-to-offer match on '+subject+' — a strong lead worth protecting and scaling carefully rather than diluting with broader targeting.';
+    }
+  };
+  // Appends the analyst-voice insight clause for a metric onto a base stat
+  // sentence, given the raw leader and the correct efficiency benchmark
+  // for that metric's goodDirection (see CALLOUT_METRIC_INSIGHTS above).
+  function appendCalloutInsight(sentence, def, leaderLabel, benchLabel){
+    var fn = CALLOUT_METRIC_INSIGHTS[def.key];
+    if(!fn) return sentence;
+    return sentence+' '+fn(calloutHlEntity(leaderLabel), calloutHlEntity(benchLabel));
+  }
+
+  // A short, optional secondary bullet nested under the primary one — the
+  // leading bucket's selected metric checked against one related "companion"
+  // metric, looking for a gap worth flagging (a strong rate on a small
+  // slice of volume = untapped potential; a big share of an input metric
+  // not carrying through to the output metric = a leak). Only surfaces
+  // when the gap actually clears a "worth mentioning" bar; otherwise
+  // returns '' and the caller omits it entirely, per spec ("if you don't
+  // see value in a secondary bullet point you can omit it").
+  var CALLOUT_SECONDARY_COMPANION = {
+    impressions:'clicks', clicks:'orders', ctr:'impressions', wasted:'spend',
+    spend:'revenue', cpc:'clicks', revenue:'spend', roas:'spend',
+    orders:'clicks', cvr:'clicks'
+  };
+  var CALLOUT_SECONDARY_GAP_THRESHOLD = 0.15;      // percentage points, magnitude-vs-magnitude comparisons
+  var CALLOUT_SECONDARY_LOW_SHARE_THRESHOLD = 0.20; // rate metrics: companion share below this counts as "small slice"
+  var CALLOUT_SECONDARY_BUILDERS = {
+    // magnitude metrics compare the leader's share of the primary metric
+    // (shareA) against its share of the companion metric (shareB).
+    impressions: function(shareA, shareB, who){
+      var gap = shareB-shareA;
+      if(Math.abs(gap) < CALLOUT_SECONDARY_GAP_THRESHOLD) return '';
+      return gap>0
+        ? who+' is punching above its weight on clicks — '+fmtPct(shareB)+' of total clicks versus '+fmtPct(shareA)+' of total impressions, a sign more impression volume there could pay off.'
+        : who+'’s share of clicks ('+fmtPct(shareB)+') trails its share of impressions ('+fmtPct(shareA)+') — worth a relevance or creative check before pushing more visibility its way.';
+    },
+    clicks: function(shareA, shareB, who){
+      var gap = shareA-shareB;
+      if(Math.abs(gap) < CALLOUT_SECONDARY_GAP_THRESHOLD) return '';
+      return gap>0
+        ? who+'’s share of orders ('+fmtPct(shareB)+') trails its share of clicks ('+fmtPct(shareA)+') — a lot of traffic not converting at the rest of the account’s rate.'
+        : who+' converts efficiently — its share of orders ('+fmtPct(shareB)+') actually exceeds its share of clicks ('+fmtPct(shareA)+').';
+    },
+    wasted: function(shareA, shareB, who, leader, ranked){
+      var out = [];
+      var gap = shareA-shareB;
+      if(gap >= CALLOUT_SECONDARY_GAP_THRESHOLD){
+        out.push(who+' accounts for '+fmtPct(shareA)+' of Wasted Spend on just '+fmtPct(shareB)+' of total Ad Spend — waste is disproportionately concentrated here.');
+      }
+      if(ranked && ranked.length>1){
+        var cleanest = ranked[ranked.length-1];
+        if(cleanest!==leader && num(cleanest.metrics.spend)>0){
+          out.push(calloutHlEntity(cleanest.label)+' carried the least Wasted Spend of the group — a comparatively clean spender that could be a good candidate for additional investment.');
+        }
+      }
+      return out;
+    },
+    spend: function(shareA, shareB, who){
+      var gap = shareA-shareB;
+      if(Math.abs(gap) < CALLOUT_SECONDARY_GAP_THRESHOLD) return '';
+      return gap>0
+        ? who+' absorbs '+fmtPct(shareA)+' of total Ad Spend but returns only '+fmtPct(shareB)+' of total Revenue — a disproportionate share of budget for the revenue it generates.'
+        : who+' is punching above its weight — '+fmtPct(shareB)+' of total Revenue from just '+fmtPct(shareA)+' of Ad Spend.';
+    },
+    revenue: function(shareA, shareB, who){
+      var gap = shareA-shareB;
+      if(Math.abs(gap) < CALLOUT_SECONDARY_GAP_THRESHOLD) return '';
+      return gap>0
+        ? who+' generates '+fmtPct(shareA)+' of total Revenue from just '+fmtPct(shareB)+' of total Ad Spend — an efficient use of budget relative to its output.'
+        : who+'’s share of Revenue ('+fmtPct(shareA)+') trails its share of Ad Spend ('+fmtPct(shareB)+') — a lot of budget for the return it’s generating.';
+    },
+    orders: function(shareA, shareB, who){
+      var gap = shareA-shareB;
+      if(Math.abs(gap) < CALLOUT_SECONDARY_GAP_THRESHOLD) return '';
+      return gap>0
+        ? who+' converts efficiently — its share of Orders ('+fmtPct(shareA)+') exceeds its share of Clicks ('+fmtPct(shareB)+').'
+        : who+'’s share of Orders ('+fmtPct(shareA)+') trails its share of Clicks ('+fmtPct(shareB)+') — more traffic than conversions relative to the rest of the account.';
+    },
+    // rate metrics only pass a single companion share — the volume the
+    // strong (or weak) rate is actually happening on.
+    ctr: function(companionShare, who){
+      if(companionShare >= CALLOUT_SECONDARY_LOW_SHARE_THRESHOLD) return '';
+      return 'That strong CTR is riding on a small slice of total impressions ('+fmtPct(companionShare)+') — worth confirming it holds up before leaning on it too heavily.';
+    },
+    cpc: function(companionShare, who){
+      if(companionShare >= CALLOUT_SECONDARY_LOW_SHARE_THRESHOLD) return '';
+      return 'That higher CPC is only happening on '+fmtPct(companionShare)+' of total clicks, so the account-wide budget impact is limited for now.';
+    },
+    roas: function(companionShare, who){
+      if(companionShare >= CALLOUT_SECONDARY_LOW_SHARE_THRESHOLD) return '';
+      return 'This ROAS leader only carries '+fmtPct(companionShare)+' of total Ad Spend — a strong, underfunded performer worth feeding more budget.';
+    },
+    cvr: function(companionShare, who){
+      if(companionShare >= CALLOUT_SECONDARY_LOW_SHARE_THRESHOLD) return '';
+      return 'That strong CVR is happening on just '+fmtPct(companionShare)+' of total clicks — a small but efficient pocket worth scaling with more volume.';
+    }
+  };
+  // Builds the nested <ul class="callout-bullets-sub"> markup for one
+  // metric's secondary callout, or '' when nothing about the leading
+  // bucket's other metrics clears the "worth mentioning" bar.
+  function buildCalloutSecondaryBullet(def, leader, totalBucket, ranked){
+    var companionKey = CALLOUT_SECONDARY_COMPANION[def.key];
+    var builder = CALLOUT_SECONDARY_BUILDERS[def.key];
+    if(!companionKey || !builder) return '';
+    var companionTotal = totalBucket[companionKey];
+    var companionShare = companionTotal>0 ? leader.metrics[companionKey]/companionTotal : 0;
+    var who = calloutHlEntity(leader.label);
+    var result;
+    if(def.kind==='rate'){
+      result = builder(companionShare, who, leader, ranked);
+    } else {
+      var primaryTotal = totalBucket[def.key];
+      var primaryShare = primaryTotal>0 ? leader.metrics[def.key]/primaryTotal : 0;
+      result = builder(primaryShare, companionShare, who, leader, ranked);
+    }
+    // Builders normally return a single string (or '' to omit), but some
+    // (e.g. Wasted Spend, which can flag both a concentration issue and a
+    // separate "least-wasted" investment opportunity) return an array of
+    // strings — one <li> each, nested under the primary bullet.
+    var texts = [].concat(result||[]).filter(Boolean);
+    if(!texts.length) return '';
+    return '<ul class="callout-bullets-sub">'+texts.map(function(t){ return '<li>'+t+'</li>'; }).join('')+'</ul>';
+  }
+
+  // Filters a bucket list down to the ones with enough data to be included
+  // in a comparison for the given metric (any activity at all, plus — for
+  // rate metrics — a non-zero denominator so the rate itself is
+  // meaningful), then ranks them highest-to-lowest by that metric.
+  function rankCalloutBuckets(buckets, def){
+    var valid = buckets.filter(function(b){
+      if(!calloutBucketIsActive(b.metrics)) return false;
+      if(def.kind==='rate') return num(b.metrics[def.denominator])>0;
+      return true;
+    });
+    valid.sort(function(a,b){ return b.metrics[def.key]-a.metrics[def.key]; });
+    return valid;
+  }
+
+  // Branded vs. Non-Branded's two-bucket template: always names both
+  // segments (per spec — "how Branded compared to Non-Branded and vice
+  // versa"), stating both values plus which one leads and by how much.
+  function buildTwoBucketCalloutBullet(def, buckets){
+    var ranked = rankCalloutBuckets(buckets, def);
+    var a = buckets[0], b = buckets[1];
+    var aActive = ranked.indexOf(a)!==-1, bActive = ranked.indexOf(b)!==-1;
+    if(!aActive && !bActive){
+      return '<li>Not enough data was available to generate a '+calloutHlMetric(def.label)+' callout for this section.</li>';
+    }
+    if(aActive && !bActive){
+      return '<li>'+calloutHlEntity(a.label)+' was the only segment with sufficient '+calloutHlMetric(def.label)+' data, recording '+formatCalloutMetricValue(def, a.metrics[def.key])+'.</li>';
+    }
+    if(!aActive && bActive){
+      return '<li>'+calloutHlEntity(b.label)+' was the only segment with sufficient '+calloutHlMetric(def.label)+' data, recording '+formatCalloutMetricValue(def, b.metrics[def.key])+'.</li>';
+    }
+    var va = a.metrics[def.key], vb = b.metrics[def.key];
+    var leader = va>=vb ? a : b, other = va>=vb ? b : a;
+    var leaderVal = leader.metrics[def.key], otherVal = other.metrics[def.key];
+    var sentence = calloutHlEntity(a.label)+' recorded '+calloutHlMetric(def.label)+' of '+formatCalloutMetricValue(def, va)+
+      ', compared to '+calloutHlEntity(b.label)+' at '+formatCalloutMetricValue(def, vb);
+    if(leaderVal===otherVal){
+      sentence += ' — an even split between the two, so this metric alone isn’t a differentiator worth acting on yet.';
+      return '<li>'+sentence+'</li>';
+    }
+    var delta = formatCalloutMetricDelta(def, leaderVal, otherVal);
+    sentence += delta ? (' — '+calloutHlEntity(leader.label)+' ahead by '+delta+'.') : '.';
+    sentence = appendCalloutInsight(sentence, def, leader.label, other.label);
+    var secondary = buildCalloutSecondaryBullet(def, leader, sumCalloutBuckets(buckets), ranked);
+    return '<li>'+sentence+secondary+'</li>';
+  }
+
+  // Ad Product / Match Type's ranked template: names only the single
+  // leader for the metric — a magnitude metric (Impressions/Clicks/
+  // Wasted Spend/Ad Spend/Revenue/Orders) states its share of the total
+  // across every bucket instead of listing 2nd/3rd place; a rate metric
+  // (CTR/CPC/ROAS/CVR) compares it to the blended average across every
+  // bucket instead. Either way it's always the single most relevant
+  // number, not a ranking list.
+  function buildRankedCalloutBullet(def, buckets, dimensionNoun){
+    var ranked = rankCalloutBuckets(buckets, def);
+    if(ranked.length===0){
+      return '<li>Not enough data was available to generate a '+calloutHlMetric(def.label)+' callout for '+esc(dimensionNoun.plural)+'.</li>';
+    }
+    if(ranked.length===1){
+      var only = ranked[0];
+      return '<li>'+calloutHlEntity(only.label)+' was the only '+esc(dimensionNoun.singular)+' with sufficient '+calloutHlMetric(def.label)+' data, recording '+formatCalloutMetricValue(def, only.metrics[def.key])+'.</li>';
+    }
+    var leader = ranked[0];
+    var totalBucket = sumCalloutBuckets(buckets);
+    var sentence;
+    if(def.kind==='rate'){
+      // A pooled/blended rate is always a weighted average of the
+      // per-bucket rates, so the single highest individual bucket can
+      // never fall below it — safe to always phrase this as "above".
+      sentence = calloutHlEntity(leader.label)+' posted the highest '+calloutHlMetric(def.label)+' among all '+esc(dimensionNoun.plural)+' at '+formatCalloutMetricValue(def, leader.metrics[def.key])+
+        ', compared to a blended average of '+formatCalloutMetricValue(def, totalBucket[def.key])+' across all '+esc(dimensionNoun.plural)+'.';
+    } else {
+      var total = totalBucket[def.key];
+      var share = total>0 ? leader.metrics[def.key]/total : 0;
+      sentence = calloutHlEntity(leader.label)+' led all '+esc(dimensionNoun.plural)+' in '+calloutHlMetric(def.label)+' at '+formatCalloutMetricValue(def, leader.metrics[def.key])+
+        ', about '+fmtPct(share)+' of total '+esc(def.label)+' across all '+esc(dimensionNoun.plural)+'.';
+    }
+    // The efficiency benchmark to cite in the insight clause: for
+    // goodDirection:'low' metrics (Wasted Spend/CPC) the raw leader is the
+    // pain point, so the benchmark worth naming is whichever valid bucket
+    // is actually lowest — not simply the runner-up.
+    var benchLabel = def.goodDirection==='low' ? ranked[ranked.length-1].label : ranked[1].label;
+    sentence = appendCalloutInsight(sentence, def, leader.label, benchLabel);
+    var secondary = buildCalloutSecondaryBullet(def, leader, totalBucket, ranked);
+    return '<li>'+sentence+secondary+'</li>';
+  }
+
+  var ADDITIONAL_CALLOUTS_DIMENSION_NOUN = {
+    overview: {singular:'ad product', plural:'ad products'},
+    matchTypePerformance: {singular:'match type', plural:'match types'}
+  };
+
+  // Builds the <ul class="callout-bullets"> markup for one page's
+  // Additional Callouts widget, one <li> per metric the user selected.
+  function generateAdditionalCalloutsHtml(pageKey){
+    var cfg = state.additionalCallouts[pageKey];
+    var metrics = (cfg.selectedMetrics||[]).map(function(k){ return CALLOUT_METRIC_DEFS_BY_KEY[k]; }).filter(Boolean);
+    if(!metrics.length) return '';
+    var bullets;
+    if(pageKey==='brandedNonBranded'){
+      var bnBuckets = computeBrandedNonBrandedCalloutBuckets();
+      bullets = metrics.map(function(def){ return buildTwoBucketCalloutBullet(def, bnBuckets); });
+    } else if(pageKey==='overview'){
+      var apBuckets = computeAdProductCalloutBuckets();
+      bullets = metrics.map(function(def){ return buildRankedCalloutBullet(def, apBuckets, ADDITIONAL_CALLOUTS_DIMENSION_NOUN.overview); });
+    } else if(pageKey==='matchTypePerformance'){
+      var mtBuckets = computeMatchTypeCalloutBuckets();
+      bullets = metrics.map(function(def){ return buildRankedCalloutBullet(def, mtBuckets, ADDITIONAL_CALLOUTS_DIMENSION_NOUN.matchTypePerformance); });
+    } else {
+      bullets = [];
+    }
+    return '<ul class="callout-bullets">'+bullets.join('')+'</ul>';
+  }
+
+  // Renders the full "Additional Callouts" widget for one page. The grey
+  // panel is always present: blank, it's a clickable "start here" surface
+  // styled like the app's upload dropzones/report-type cards (dashed
+  // border, centered icon, hover feedback) — clicking it opens the metric
+  // picker directly, with no separate "Generate Call-Outs" button.
+  // Populated, it shows the generated bullets, and a "Reset" button next
+  // to the widget title reopens the same picker (pre-checked with the
+  // current selection) to change it.
+  function renderAdditionalCalloutsWidget(pageKey){
+    var cfg = state.additionalCallouts[pageKey];
+    var widgetId = 'addlCallouts-'+pageKey;
+    var isBlank = !cfg.generated || !cfg.selectedMetrics.length;
+    var panelHtml;
+    if(isBlank){
+      panelHtml = '<div class="addl-callouts-panel addl-callouts-panel-empty" data-addl-callouts-open="'+pageKey+'" role="button" tabindex="0">'+
+        '<div class="dz-icon">&#9998;</div>'+
+        '<div class="dz-label">Generate Call-Outs</div>'+
+        '<div class="dz-sub">Click to select the key metrics you want called out on this page</div>'+
+      '</div>';
+    } else {
+      panelHtml = '<div class="addl-callouts-panel">'+generateAdditionalCalloutsHtml(pageKey)+'</div>';
+    }
+    // Custom header (rather than the shared widgetHeader() helper) so a
+    // Reset icon button can sit grouped with the Copy icon — only shown
+    // once callouts exist, since blank state has nothing to reset. Reset
+    // is excluded from the header's own Copy action so copying the widget
+    // only grabs the generated narrative.
+    var headerHtml = '<div class="widget-header">'+
+      '<span class="widget-io-actions" data-html2canvas-ignore="true">'+
+        '<button class="wio-btn" data-action="copy" data-widget="'+widgetId+'-widget" data-filename="additional-callouts" data-copy-exclude=".addl-callouts-reset-btn" title="Copy this section to your clipboard">'+ICON_CLIPBOARD+'</button>'+
+        (isBlank ? '' : '<span class="wio-divider"></span><button type="button" class="wio-btn wio-btn-reset addl-callouts-reset-btn" data-addl-callouts-open="'+pageKey+'" title="Reset and choose different metrics">'+ICON_RESET+'</button>') +
+      '</span>'+
+      '<h2 class="section-title widget-title'+(state.collapsedWidgets.has(widgetId)?' is-collapsed':'')+'" data-target="'+widgetId+'">Additional Call-Outs<span class="chevron">&#9662;</span></h2>'+
+    '</div>';
+    return '<div class="ov-widget" id="'+widgetId+'-widget" style="margin-top:28px;">'+
+      headerHtml +
+      '<div id="'+widgetId+'"'+wHidden(widgetId)+' class="addl-callouts-body">'+panelHtml+'</div>'+
+      '</div>';
   }
 
   // Extracts the ASIN out of a Sponsored Display "asin=..." or
@@ -4551,8 +5583,16 @@
         var label = row.fmt==='int' ? fmtInt(val) : row.fmt==='ratio' ? fmtRatio(val) : row.fmt==='pct' ? fmtPct(val) : fmtCurrency(val);
         return hbarBarRow(s.cls, pct, label);
       }).join('');
+      // A row can opt into a clickable category label (see
+      // renderMatchTypePerformanceDetail's OTHER row, which links to the
+      // Match Type Check sub-page) by setting linkAction — every other
+      // caller of this shared chart renderer leaves it unset and gets the
+      // plain non-interactive label it always had.
+      var labelHtml = row.linkAction
+        ? '<button type="button" class="hbar-cat-label hbar-cat-label-link" data-hbar-link="'+esc(row.linkAction)+'">'+esc(row.label)+'</button>'
+        : '<div class="hbar-cat-label">'+esc(row.label)+'</div>';
       return '<div class="hbar-group'+(row.isTotal?' is-total':'')+'">'+
-        '<div class="hbar-cat-label">'+esc(row.label)+'</div>'+
+        labelHtml+
         '<div class="hbar-bars">'+barRows+'</div>'+
       '</div>';
     }).join('');
@@ -5012,7 +6052,17 @@
         '</div>'+
         '</div>';
     }
-    var kpiHtml = '<div class="kpi-two-col-row">'+
+    // The PDF export's "atomic block" capture (see pdfCollectAtomicBlocks)
+    // treats every top-level [id$="-widget"] element as its own image,
+    // captured and scaled independently to the page's full content width —
+    // which would otherwise blow the Branded/Non-Branded pair back apart
+    // into two full-width blocks stacked vertically, undoing the
+    // side-by-side layout above. Giving the wrapper itself a "-widget" id
+    // makes IT the top-level match instead (the two children become
+    // descendants of a qualifying block and are excluded), so the pair is
+    // captured as one combined image and its internal side-by-side grid is
+    // preserved.
+    var kpiHtml = '<div class="kpi-two-col-row segment-kpi-pair" id="brandedNonBrandedKpiPair-widget">'+
       segmentKpiWidget('brandedOnlyKpi','Branded Performance', d.branded) +
       segmentKpiWidget('nonBrandedOnlyKpi','Non-Branded Performance', d.nonbranded) +
     '</div>';
@@ -5040,7 +6090,9 @@
       renderTopSearchResultsTable('nonBrandedTopSearchResults','Top 5 Non-Branded Search Results', topResults.nonbranded) +
     '</div>';
 
-    document.getElementById('calloutDetailBody').innerHTML = kpiHtml + chartHtml + calloutsHtml + searchResultsHtml;
+    var additionalCalloutsHtml = renderAdditionalCalloutsWidget('brandedNonBranded');
+
+    document.getElementById('calloutDetailBody').innerHTML = kpiHtml + chartHtml + calloutsHtml + searchResultsHtml + additionalCalloutsHtml;
   }
 
   function renderBrandedCallouts(d){
@@ -5091,6 +6143,11 @@
       var isTotal = type==='TOTAL';
       var d = isTotal ? mt.total : mt.byType[type];
       var base = {label:isTotal?type:matchTypeLabel(type), isTotal:isTotal};
+      // The OTHER row only ever appears here when it has data (see
+      // chartRowOrder's filter below), which is exactly the same condition
+      // that puts rows on the Match Type Check sub-page — so whenever this
+      // row is drawn, that sub-page exists and its label can link to it.
+      if(type==='OTHER') base.linkAction = 'matchTypeCheck';
       Object.keys(extra).forEach(function(k){ base[k] = extra[k]; });
       return {base:base, d:d};
     }
@@ -5137,7 +6194,9 @@
 
     var calloutsHtml = renderMatchTypeCallouts(mt);
 
-    document.getElementById('calloutDetailBody').innerHTML = topChartsHtml + bottomChartHtml + calloutsHtml;
+    var additionalCalloutsHtml = renderAdditionalCalloutsWidget('matchTypePerformance');
+
+    document.getElementById('calloutDetailBody').innerHTML = topChartsHtml + bottomChartHtml + calloutsHtml + additionalCalloutsHtml;
   }
 
   // Callouts narrative for the Match Type Performance sub-page. Each
@@ -5408,6 +6467,67 @@
     showOverviewMain();
   });
 
+  document.getElementById('btnExportFullPdf').addEventListener('click', function(){
+    exportFullAuditPdf();
+  });
+
+  // Brand Check tab's own main-view / sub-page toggle — same pattern as
+  // showOverviewMain/showCalloutDetail above, just with a single fixed
+  // sub-page (Match Type Check) instead of a CALLOUT_DEFS-driven list.
+  function showBrandCheckMain(){
+    state.activeBrandCheckSubpage = null;
+    document.getElementById('matchTypeCheckDetailView').classList.add('hidden');
+    document.getElementById('brandCheckMainView').classList.remove('hidden');
+    updateNavActiveState();
+  }
+  function showMatchTypeCheckDetail(){
+    state.activeBrandCheckSubpage = 'matchTypeCheck';
+    document.getElementById('brandCheckMainView').classList.add('hidden');
+    document.getElementById('matchTypeCheckDetailView').classList.remove('hidden');
+    renderMatchTypeCheckDetail();
+    updateNavActiveState();
+  }
+  // Re-renders whichever of the Brand Check tab's two states is currently
+  // active — used by renderAll() so data changes refresh the visible one
+  // (the main view's own widgets are refreshed unconditionally by
+  // renderAll() regardless of which state is showing).
+  function renderBrandCheckTab(){
+    if(state.activeBrandCheckSubpage==='matchTypeCheck') renderMatchTypeCheckDetail();
+  }
+
+  document.getElementById('btnMatchTypeCheckBack').addEventListener('click', function(){
+    showBrandCheckMain();
+  });
+
+  // Adds or removes the "Match Type Check" nav sub-item under Brand Check
+  // depending on whether any row currently classifies as match type OTHER
+  // — per request, the sub-page (and its nav entry) simply doesn't exist
+  // when there's nothing to check. If the sub-page was open when its last
+  // OTHER row disappears (e.g. a mapping fix reclassifies it), this backs
+  // the user out to the Brand Check main view rather than leaving them on
+  // a now-inaccessible page.
+  function updateBrandCheckNav(){
+    var existing = document.querySelector('.nav-subitem[data-subpage="matchTypeCheck"]');
+    var hasOther = computeMatchTypeOtherRows().length>0;
+    if(hasOther){
+      if(!existing){
+        var parent = document.querySelector('.nav-item[data-tab="brandcheck"]');
+        if(parent){
+          var li = document.createElement('li');
+          li.className = 'nav-subitem';
+          li.setAttribute('data-tab','brandcheck');
+          li.setAttribute('data-subpage','matchTypeCheck');
+          li.innerHTML = '<span class="sub-dot">&bull;</span>Match Type Check';
+          parent.insertAdjacentElement('afterend', li);
+        }
+      }
+    } else {
+      if(existing) existing.remove();
+      if(state.activeBrandCheckSubpage==='matchTypeCheck') showBrandCheckMain();
+    }
+    updateNavActiveState();
+  }
+
   function commitWastedRowsInput(input){
     var val = parseInt(input.value, 10);
     if(isNaN(val) || val<1) val = 1;
@@ -5427,6 +6547,15 @@
   }
   document.getElementById('calloutDetailBody').addEventListener('click', function(e){
     if(handleWioClick(e)) return;
+    var hbarLink = e.target.closest('[data-hbar-link]');
+    if(hbarLink){
+      var linkAction = hbarLink.getAttribute('data-hbar-link');
+      if(linkAction==='matchTypeCheck'){
+        activateTab('brandcheck');
+        showMatchTypeCheckDetail();
+      }
+      return;
+    }
     var sortTh = e.target.closest('.sortable-th');
     if(sortTh){
       var field = sortTh.getAttribute('data-sort-field');
@@ -5459,13 +6588,132 @@
   });
 
   /* =========================================================
+     MATCH TYPE CHECK (Brand Check sub-page) — sortable/paginated table of
+     every row classified as match type OTHER (see computeMatchTypeOtherRows
+     above). Column order and sort/pagination behavior mirror the Top
+     Wasted Search Terms table (renderWastedTermsTable) for consistency.
+  ========================================================= */
+  var MATCH_TYPE_CHECK_COLUMNS = [
+    {field:'targeting',    label:'Targeting'},
+    {field:'term',         label:'Search Term'},
+    {field:'campaign',     label:'Campaign'},
+    {field:'impressions', label:'Impressions'},
+    {field:'clicks',       label:'Clicks'},
+    {field:'wasted',       label:'Wasted Spend'},
+    {field:'spend',        label:'Ad Spend'},
+    {field:'revenue',      label:'Revenue'},
+    {field:'orders',       label:'Orders'}
+  ];
+  var MATCH_TYPE_CHECK_STRING_FIELDS = {targeting:true, term:true, campaign:true};
+  function sortMatchTypeCheckRows(rows, field, dir){
+    var sorted = rows.slice();
+    sorted.sort(function(a,b){
+      var av, bv;
+      if(MATCH_TYPE_CHECK_STRING_FIELDS[field]){ av = (a[field]||'').toLowerCase(); bv = (b[field]||'').toLowerCase(); }
+      else { av = a[field]; bv = b[field]; }
+      if(av<bv) return dir==='asc' ? -1 : 1;
+      if(av>bv) return dir==='asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }
+  function renderMatchTypeCheckDetail(){
+    var rows = computeMatchTypeOtherRows();
+    var t = state.matchTypeCheckTable;
+    var sorted = sortMatchTypeCheckRows(rows, t.sortField, t.sortDir);
+    var maxPage = Math.max(0, Math.ceil(sorted.length/t.pageSize)-1);
+    if(t.page>maxPage) t.page = maxPage;
+    var start = t.page*t.pageSize;
+    var pageRows = sorted.slice(start, start+t.pageSize);
+
+    var bodyRows = pageRows.map(function(r){
+      // Per request: a blank Targeting value in the source data shows as
+      // "(blank)" (distinct from the Search Term column's "-" convention,
+      // which covers rows with a Targeting value but no search term of
+      // their own — the typical Sponsored Display case).
+      var targetingCell = r.targeting ? esc(r.targeting) : '(blank)';
+      var termCell = r.term ? amazonLinkHtml(r.term, false, esc(r.term)) : '-';
+      var campaignCell = r.campaign ? esc(r.campaign) : '-';
+      return '<tr><td>'+targetingCell+'</td><td>'+termCell+'</td><td>'+campaignCell+'</td><td>'+fmtInt(r.impressions)+'</td><td>'+fmtInt(r.clicks)+'</td><td>'+fmtCurrency(r.wasted)+'</td><td>'+fmtCurrency(r.spend)+'</td><td>'+fmtCurrency(r.revenue)+'</td><td>'+fmtInt(r.orders)+'</td></tr>';
+    }).join('');
+    var headHtml = MATCH_TYPE_CHECK_COLUMNS.map(function(col){
+      var isActive = t.sortField===col.field;
+      var arrow = isActive ? (t.sortDir==='asc' ? ' <span class="sort-arrow">&#9650;</span>' : ' <span class="sort-arrow">&#9660;</span>') : '';
+      return '<th class="sortable-th'+(isActive?' is-sorted':'')+'" data-sort-field="'+col.field+'">'+esc(col.label)+arrow+'</th>';
+    }).join('');
+
+    var tableHtml = '<div id="matchTypeCheckTable-widget">'+
+      widgetHeader('matchTypeCheckTable','Match Type: Other', {png:true, csv:true}) +
+      '<div id="matchTypeCheckTable"'+wHidden('matchTypeCheckTable')+'>'+
+      '<p class="widget-note" style="padding:0 0 14px;">Rows are grouped by Targeting + Search Term + Campaign. A &ldquo;-&rdquo; in Search Term means that row had a Targeting value but no search term of its own (typically Sponsored Display placements). A &ldquo;(blank)&rdquo; in Targeting means the source data had no Targeting value for that row. Click a column to sort.</p>'+
+      '<div class="ov-table-wrap"><table class="ov-table"><thead><tr>'+
+        headHtml+
+      '</tr></thead><tbody>'+
+      (bodyRows || '<tr><td colspan="9" style="text-align:center;color:var(--ink-muted);padding:24px;">No rows found.</td></tr>') +
+      '</tbody></table></div>'+
+      '<div class="sr-pagination">'+
+        '<span>'+(sorted.length ? 'Showing '+fmtInt(start+1)+'–'+fmtInt(Math.min(start+t.pageSize, sorted.length))+' of '+fmtInt(sorted.length)+' rows' : 'No results')+'</span>'+
+        '<div class="pg-btns">'+
+          '<label class="rows-per-page-label">Rows per page <input type="number" class="rows-per-page-input" id="matchTypeCheckRowsInput" min="1" max="500" step="1" value="'+t.pageSize+'"></label>'+
+          '<button class="btn btn-ghost btn-sm" id="btnMatchTypeCheckPrevPage"'+(t.page<=0?' disabled':'')+'>&larr; Prev</button>'+
+          '<button class="btn btn-ghost btn-sm" id="btnMatchTypeCheckNextPage"'+(t.page>=maxPage?' disabled':'')+'>Next &rarr;</button>'+
+        '</div>'+
+      '</div>'+
+      '</div>'+
+      '</div>';
+
+    document.getElementById('matchTypeCheckBody').innerHTML = tableHtml;
+  }
+  function commitMatchTypeCheckRowsInput(input){
+    var val = parseInt(input.value, 10);
+    if(isNaN(val) || val<1) val = 1;
+    if(val>500) val = 500;
+    if(val===state.matchTypeCheckTable.pageSize) return;
+    state.matchTypeCheckTable.pageSize = val;
+    state.matchTypeCheckTable.page = 0;
+    renderMatchTypeCheckDetail();
+  }
+  document.getElementById('matchTypeCheckBody').addEventListener('click', function(e){
+    if(handleWioClick(e)) return;
+    var sortTh = e.target.closest('.sortable-th');
+    if(sortTh){
+      var field = sortTh.getAttribute('data-sort-field');
+      if(state.matchTypeCheckTable.sortField===field){
+        state.matchTypeCheckTable.sortDir = state.matchTypeCheckTable.sortDir==='asc' ? 'desc' : 'asc';
+      } else {
+        state.matchTypeCheckTable.sortField = field;
+        state.matchTypeCheckTable.sortDir = MATCH_TYPE_CHECK_STRING_FIELDS[field] ? 'asc' : 'desc';
+      }
+      state.matchTypeCheckTable.page = 0;
+      renderMatchTypeCheckDetail();
+      return;
+    }
+    if(e.target.closest('#btnMatchTypeCheckPrevPage')){
+      if(state.matchTypeCheckTable.page>0){ state.matchTypeCheckTable.page--; renderMatchTypeCheckDetail(); }
+      return;
+    }
+    if(e.target.closest('#btnMatchTypeCheckNextPage')){
+      state.matchTypeCheckTable.page++; renderMatchTypeCheckDetail();
+      return;
+    }
+  });
+  document.getElementById('matchTypeCheckBody').addEventListener('change', function(e){
+    if(e.target.id==='matchTypeCheckRowsInput') commitMatchTypeCheckRowsInput(e.target);
+  });
+  document.getElementById('matchTypeCheckBody').addEventListener('keydown', function(e){
+    if(e.target.id==='matchTypeCheckRowsInput' && e.key==='Enter'){ e.preventDefault(); commitMatchTypeCheckRowsInput(e.target); }
+  });
+
+  /* =========================================================
      RENDER ALL
   ========================================================= */
   function renderAll(){
     renderBrandedTerms();
     renderSearchResults();
     renderSearchedAsins();
+    updateBrandCheckNav();
     if(document.getElementById('tab-overview').classList.contains('active')) renderOverviewTab();
+    if(document.getElementById('tab-brandcheck').classList.contains('active')) renderBrandCheckTab();
   }
 
   /* =========================================================
