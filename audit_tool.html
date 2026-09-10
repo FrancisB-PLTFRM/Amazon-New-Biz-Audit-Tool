@@ -521,6 +521,17 @@
      to spare either way. */
   .pdf-export-mode table.ov-table th{padding:8px 5px !important;font-size:9px !important;}
   .pdf-export-mode table.ov-table td{padding:8px 5px !important;font-size:11px !important;}
+  /* .hbar-chart-row normally collapses to one column below 980px — which
+     the PDF export's simulated 720px capture width would always trigger —
+     but the three specific chart pairs that use it (Ad Product Performance
+     + Branded vs. Non-Branded under Wasted Spend; Ad Spend/Revenue + ROAS
+     under both Match Type Performance and New Targets) are meant to stay
+     side-by-side in the exported deck specifically, without touching how
+     they behave in a genuinely resized browser window. Paired with the
+     wrapper's own "-widget" id (see wastedChartsPair-widget and friends),
+     which captures the pair as one combined image so this side-by-side
+     layout is preserved rather than recomputed per chart. */
+  .pdf-export-mode .hbar-chart-row{grid-template-columns:1fr 1fr !important;gap:14px !important;}
   .tab-panel{display:none;}
   .tab-panel.active{display:block;}
 
@@ -561,6 +572,26 @@
   .callout-index-link .callout-value{color:var(--warn-soft);font-weight:800;}
   .callout-index-link .callout-arrow{color:var(--ink-muted);font-size:17px;flex:0 0 auto;transition:transform .15s ease;}
   .callout-index-link:hover .callout-arrow{color:var(--ink);transform:translateX(3px);}
+  /* The Roman numeral matching each Key Point's own page number (see
+     calloutNumberPrefix) — only ever shown in the PDF export's compact
+     Table-of-Contents-style treatment below; hidden here so the live
+     widget (still a clickable row list, unchanged) never shows it. */
+  .callout-index-roman{display:none;}
+  /* Executive Call-Outs index, PDF export only: drop the bordered card and
+     per-row divider lines and lay it out like a Word Table of Contents —
+     a narrow Roman-numeral column plus hanging-indent text — instead of
+     the live widget's bordered, clickable-row card. Font family and the
+     existing text/value colors are untouched; only the box chrome and
+     spacing change, and only for this export. */
+  .pdf-export-mode #calloutIndex-widget{margin-bottom:20px;}
+  .pdf-export-mode #calloutIndex-widget .widget-header{margin-bottom:8px;}
+  .pdf-export-mode #calloutIndex{background:transparent;border:none;border-radius:0;padding:0;}
+  .pdf-export-mode .callout-index-item{border-bottom:none;}
+  .pdf-export-mode .callout-index-link{align-items:flex-start;justify-content:flex-start;gap:8px;padding:4px 0;}
+  .pdf-export-mode .callout-index-link .callout-text{font-size:12px;line-height:1.5;}
+  .pdf-export-mode .callout-index-roman{
+    display:block;flex:0 0 26px;font-size:12px;font-weight:700;line-height:1.5;
+  }
   .callout-back-btn{
     background:none;border:none;color:var(--ink-secondary);font-size:12.5px;font-weight:600;
     padding:0;margin-bottom:18px;cursor:pointer;font-family:'Roboto',sans-serif;
@@ -657,6 +688,32 @@
   .hbar-card.compact .hbar-bar-row{height:11px;gap:6px;}
   .hbar-card.compact .hbar-value{font-size:10px;flex-basis:70px;}
 
+  /* keypoint-charts-compact: applied to every Key Point's chart row/wrapper
+     (Key Points I-V) so all of them shrink to this same tighter rhythm
+     (reusing .compact's own values above) at narrow widths or during the
+     PDF export — never at normal desktop width — keeping every Key Point's
+     charts at one consistent scale in those views, and giving the Key
+     Call-Outs widget below more room to land on the same page instead of
+     being pushed to a fresh one. */
+  @media (max-width:900px){
+    .keypoint-charts-compact .hbar-card{padding:14px 18px;}
+    .keypoint-charts-compact .hbar-header{margin-bottom:10px;}
+    .keypoint-charts-compact .hbar-group{gap:10px;margin-bottom:7px;}
+    .keypoint-charts-compact .hbar-group.is-total{padding-top:7px;margin-top:1px;}
+    .keypoint-charts-compact .hbar-cat-label{flex-basis:96px;font-size:11px;}
+    .keypoint-charts-compact .hbar-bars{gap:3px;}
+    .keypoint-charts-compact .hbar-bar-row{height:11px;gap:6px;}
+    .keypoint-charts-compact .hbar-value{font-size:10px;flex-basis:70px;}
+  }
+  .pdf-export-mode .keypoint-charts-compact .hbar-card{padding:14px 18px !important;}
+  .pdf-export-mode .keypoint-charts-compact .hbar-header{margin-bottom:10px !important;}
+  .pdf-export-mode .keypoint-charts-compact .hbar-group{gap:10px !important;margin-bottom:7px !important;}
+  .pdf-export-mode .keypoint-charts-compact .hbar-group.is-total{padding-top:7px !important;margin-top:1px !important;}
+  .pdf-export-mode .keypoint-charts-compact .hbar-cat-label{flex-basis:96px !important;font-size:11px !important;}
+  .pdf-export-mode .keypoint-charts-compact .hbar-bars{gap:3px !important;}
+  .pdf-export-mode .keypoint-charts-compact .hbar-bar-row{height:11px !important;gap:6px !important;}
+  .pdf-export-mode .keypoint-charts-compact .hbar-value{font-size:10px !important;flex-basis:70px !important;}
+
   .callouts-card{padding:22px 24px;margin-bottom:28px;}
   /* The five "Key Call-Outs" widgets (Wasted Spend, Branded vs. Non-Branded,
      Match Type Performance, Non-Converting Search Results, New Targets) sit
@@ -673,7 +730,7 @@
   /* Match Type Performance callouts specifically bold the match-type names
      (AUTO/PHRASE/EXACT/etc.) on top of the shared underline treatment,
      without affecting .cb-term usage on other Call-outs sub-pages. */
-  #matchTypeCalloutsCard-widget .cb-term{font-weight:800;}
+  #matchTypeCalloutsCard .cb-term{font-weight:800;}
   .callouts-subhead{
     display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;
     color:var(--blue-soft);text-decoration:underline;margin:0 0 14px;cursor:pointer;user-select:none;
@@ -889,39 +946,51 @@
   .ov-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:22px 24px;}
 
   .kpi-row{display:flex;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
-  /* Below 900px (this always includes the fixed 720px-wide window
-     html2canvas simulates for the PDF export — see PDF_CONTENT_W) a
-     single row of 4 tiles is too cramped, but a plain 1-column stack
-     wastes a lot of vertical space and reads as one endless list. A
-     2x2 grid keeps each tile roughly as wide as it was before while
-     halving the widget's height. Every .kpi-row always renders exactly
-     4 .kpi-tile children (see kpiTile() call sites), so the nth-child
-     selectors below can target corners directly. */
-  @media (max-width:900px){.kpi-row{display:grid;grid-template-columns:1fr 1fr;}}
   .kpi-tile{flex:1;padding:18px 20px;min-width:0;}
   .kpi-tile:not(:first-child){border-left:1px solid var(--border);}
+  /* .kpi-row-standalone marks the plain, page-level "Key Metrics" widgets
+     (Overview's and Wasted Spend's own — see ovKpiBody/wastedKpiRow) as
+     distinct from a .kpi-row nested inside .kpi-two-col-row (the Branded/
+     Non-Branded Performance pair, which keeps its own separate 2x2
+     behavior below instead — see the .kpi-two-col-row .kpi-row rules
+     further down). Below 900px (this always includes the fixed 720px-wide
+     window html2canvas simulates for the PDF export — see PDF_CONTENT_W),
+     a standalone Key Metrics widget stays a single row of 4 rather than
+     wrapping into extra rows — padding and label/value/delta type size
+     all shrink here to keep 4 tiles legible in that narrower row, and
+     every currency value is already rendered abbreviated (see
+     kpiValueAbbrev) to leave more room for it. */
   @media (max-width:900px){
-    .kpi-tile:nth-child(3){border-left:none;border-top:1px solid var(--border);}
-    .kpi-tile:nth-child(4){border-top:1px solid var(--border);}
-    /* Center each tile's label/value/callout once a standalone Key
-       Metrics-style widget (Overview's and Wasted Spend's own Key
-       Metrics — see ovKpiBody/wastedKpiRow) is actually laid out as a
-       2x2 grid — left alignment read oddly once each tile is only half
-       as wide. The Branded/Non-Branded Performance pair (.kpi-two-col-row)
-       is excluded and stays left-aligned. */
-    .kpi-tile{text-align:center;}
-    .kpi-two-col-row .kpi-tile{text-align:left;}
+    .kpi-row-standalone .kpi-tile{padding:12px 9px;}
+    .kpi-row-standalone .kpi-tile .kpi-label{font-size:9px;margin-bottom:5px;}
+    .kpi-row-standalone .kpi-tile .kpi-value{font-size:16px;}
+    .kpi-row-standalone .kpi-tile .kpi-delta{font-size:9.5px;margin-top:3px;}
   }
-  /* Genuinely tiny viewports (a real narrow phone, not just a resized
-     desktop window or the 720px PDF capture width): two tiles per row is
-     too little room for a value like "$1,678.60" next to its label and
-     stays legible instead as a plain 1-column stack, same as before this
-     2x2 layout existed. Back to left-aligned here too, since centering
-     was specifically about the 2x2 grid state above, not this fallback. */
+  /* Genuinely tiny viewports (a real narrow phone): shrink one step
+     further still, remaining one row of 4 rather than wrapping — legible
+     over compact is still the goal, but there's less room to protect. */
   @media (max-width:560px){
-    .kpi-row{grid-template-columns:1fr;}
-    .kpi-tile:not(:first-child){border-left:none;border-top:1px solid var(--border);}
-    .kpi-tile{text-align:left;}
+    .kpi-row-standalone .kpi-tile{padding:9px 6px;}
+    .kpi-row-standalone .kpi-tile .kpi-label{font-size:8px;margin-bottom:4px;}
+    .kpi-row-standalone .kpi-tile .kpi-value{font-size:13px;}
+    .kpi-row-standalone .kpi-tile .kpi-delta{font-size:8.5px;margin-top:2px;}
+  }
+  /* The Branded/Non-Branded Performance pair's own .kpi-row (nested in
+     .kpi-two-col-row) keeps the previous 2x2-below-900px / 1-column-
+     below-560px behavior, centered in the 2x2 state — entirely unaffected
+     by the standalone-widget rules above. Every .kpi-row always renders
+     exactly 4 .kpi-tile children (see kpiTile() call sites), so the
+     nth-child selectors below can target corners directly. */
+  @media (max-width:900px){
+    .kpi-two-col-row .kpi-row{display:grid;grid-template-columns:1fr 1fr;}
+    .kpi-two-col-row .kpi-tile:nth-child(3){border-left:none;border-top:1px solid var(--border);}
+    .kpi-two-col-row .kpi-tile:nth-child(4){border-top:1px solid var(--border);}
+    .kpi-two-col-row .kpi-tile{text-align:center;}
+  }
+  @media (max-width:560px){
+    .kpi-two-col-row .kpi-row{grid-template-columns:1fr;}
+    .kpi-two-col-row .kpi-tile:not(:first-child){border-left:none;border-top:1px solid var(--border);}
+    .kpi-two-col-row .kpi-tile{text-align:left;}
   }
   .kpi-tile .kpi-label{font-size:11px;text-transform:uppercase;letter-spacing:0.6px;color:var(--ink-muted);font-weight:600;margin-bottom:10px;}
   .kpi-tile .kpi-value{font-size:26px;font-weight:700;letter-spacing:-0.4px;}
@@ -1703,6 +1772,8 @@
   var PDF_CAPTURE_SCALE = 2;
   var PDF_SEP_GAP = 14; // space above the separator rule, at the end of a section
   var PDF_WIDGET_GAP = 28; // vertical breathing room between stacked widgets — matches .ov-widget's own margin-bottom in the live app, which a per-widget screenshot otherwise strips out
+  var PDF_PAGE_NUM_RGB = [116,117,124]; // matches --ink-muted
+  var PDF_PAGE_NUM_Y = PDF_PAGE_H - PDF_MARGIN/2; // centered in the blank bottom-margin band (below PDF_MARGIN+PDF_CONTENT_H), with a full PDF_MARGIN/2 (24px/0.25in) of clearance to the physical page edge below it — inside most printers' unprintable-margin limit even though it sits outside the normal PDF_MARGIN content column
 
   function pdfSleep(ms){ return new Promise(function(res){ setTimeout(res, ms); }); }
 
@@ -1736,6 +1807,30 @@
     return blocks.concat(top);
   }
 
+  // Stamps a page number at the bottom of every page, once the whole
+  // document is assembled — looping over doc.internal.getNumberOfPages()
+  // here (rather than drawing one inline as each page is created) is what
+  // guarantees every page gets a number, including a page that only
+  // exists because a single block was taller than a full page and had to
+  // be sliced across a few of them (addAtomicCanvas' slicing branch),
+  // which the startNewPage() call sites alone don't all account for.
+  // Drawn as real vector text directly on the page (not part of any
+  // html2canvas-captured image) at PDF_PAGE_NUM_Y, in the blank margin
+  // band below the normal PDF_MARGIN content column — outside the report's
+  // usual readable area, but still with a full PDF_MARGIN/2 of clearance
+  // above the physical page edge so it survives most printers' own
+  // unprintable margin.
+  function stampPageNumbers(doc){
+    var total = doc.internal.getNumberOfPages();
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(PDF_PAGE_NUM_RGB[0], PDF_PAGE_NUM_RGB[1], PDF_PAGE_NUM_RGB[2]);
+    for(var i=1;i<=total;i++){
+      doc.setPage(i);
+      doc.text(String(i), PDF_PAGE_W/2, PDF_PAGE_NUM_Y, { align:'center' });
+    }
+  }
+
   function pdfCaptureElement(el){
     return html2canvas(el, {
       backgroundColor: 'rgb('+PDF_PAGE_BG_RGB.join(',')+')',
@@ -1755,6 +1850,35 @@
       alert('PDF export isn\'t available right now — please try again in a moment.');
       return;
     }
+    var btn = document.getElementById('btnExportFullPdf');
+    var suggestedName = brandSlug()+'-full-audit.pdf';
+
+    // The File System Access API requires showSaveFilePicker to be called
+    // synchronously within a user gesture (this click) — it throws
+    // SecurityError if called after any async work has run in between.
+    // The capture pipeline below (looping html2canvas over every section)
+    // easily takes several seconds for a full audit, which is long enough
+    // for the click's "transient activation" to expire. Calling the picker
+    // here, before any of that async work starts, is what keeps the Save
+    // As dialog showing up; the resulting handle is threaded through to
+    // runExport and written to at the very end, instead of asking for a
+    // save location again after the PDF is already built.
+    if(window.showSaveFilePicker){
+      window.showSaveFilePicker({
+        suggestedName: suggestedName,
+        types:[{ description:'PDF document', accept:{'application/pdf':['.pdf']} }]
+      }).then(function(handle){
+        runFullAuditPdfExport(handle, suggestedName);
+      }).catch(function(err){
+        if(err && err.name==='AbortError') return; // user cancelled the save dialog — nothing was generated yet
+        runFullAuditPdfExport(null, suggestedName); // picker failed for some other reason — fall back to a classic download
+      });
+    } else {
+      runFullAuditPdfExport(null, suggestedName);
+    }
+  }
+
+  function runFullAuditPdfExport(handle, suggestedName){
     var btn = document.getElementById('btnExportFullPdf');
     if(btn) btn.disabled = true;
     pdfShowLoadingOverlay(true);
@@ -1876,8 +2000,21 @@
     });
 
     chain.then(function(){
+      stampPageNumbers(doc);
       var blob = doc.output('blob');
-      return saveBlobToUserLocation(blob, brandSlug()+'-full-audit.pdf', { description:'PDF document', accept:{'application/pdf':['.pdf']} });
+      // The save-location handle (if any) was already obtained up front in
+      // exportFullAuditPdf, back when the click's user gesture was still
+      // active — write to it directly here rather than calling
+      // saveBlobToUserLocation, which would try to open the picker again
+      // at this point (too late for it to be allowed) before falling back
+      // to a plain download.
+      if(handle){
+        return handle.createWritable().then(function(writable){
+          return writable.write(blob).then(function(){ return writable.close(); });
+        });
+      }
+      downloadBlobClassic(blob, suggestedName);
+      return Promise.resolve();
     }).catch(function(err){
       console.error(err);
       alert('Something went wrong exporting the full audit PDF.');
@@ -4201,9 +4338,9 @@
     var kpiHtml =
       '<div class="ov-widget" id="ovKpiBody-widget">'+
       widgetHeader('ovKpiBody','Key Metrics', {png:true}) +
-      '<div class="kpi-row'+wHidden('ovKpiBody')+'" id="ovKpiBody">'+
-        kpiTile('Total Ad Spend', fmtCurrency(total.cost), 'Across all search terms') +
-        kpiTile('Total Revenue', fmtCurrency(total.sales), 'Attributed sales') +
+      '<div class="kpi-row kpi-row-standalone'+wHidden('ovKpiBody')+'" id="ovKpiBody">'+
+        kpiTile('Total Ad Spend', kpiValueAbbrev(total.cost), 'Across all search terms') +
+        kpiTile('Total Revenue', kpiValueAbbrev(total.sales), 'Attributed sales') +
         kpiTile('Blended ROAS', fmtRatio(total.roas), total.roas>=3?'Healthy return':'Below typical 3x benchmark', total.roas>=3?'good':'warn') +
         kpiTile('Non-Branded Spend Share', fmtPct(nonBrandedSpendShare), nonBrandedSpendShare>0.5?'Majority of spend is prospecting':'Majority of spend is defensive', nonBrandedSpendShare>0.5?'warn':'good') +
       '</div>'+
@@ -5540,8 +5677,8 @@
       return '<div class="hbar-group'+(r.isTotal?' is-total':'')+'">'+
         '<div class="hbar-cat-label">'+esc(r.label)+'</div>'+
         '<div class="hbar-bars">'+
-          hbarBarRow('spend', spendPct, fmtCurrency(r.spend)) +
-          hbarBarRow('wasted', wastedPct, fmtCurrency(r.wasted)) +
+          hbarBarRow('spend', spendPct, kpiValueAbbrev(r.spend)) +
+          hbarBarRow('wasted', wastedPct, kpiValueAbbrev(r.wasted)) +
         '</div>'+
       '</div>';
     }).join('');
@@ -5580,7 +5717,7 @@
       var barRows = seriesDefs.map(function(s){
         var val = row[s.key];
         var pct = Math.max(val/maxVal*100, val>0?1:0);
-        var label = row.fmt==='int' ? fmtInt(val) : row.fmt==='ratio' ? fmtRatio(val) : row.fmt==='pct' ? fmtPct(val) : fmtCurrency(val);
+        var label = row.fmt==='int' ? fmtInt(val) : row.fmt==='ratio' ? fmtRatio(val) : row.fmt==='pct' ? fmtPct(val) : kpiValueAbbrev(val);
         return hbarBarRow(s.cls, pct, label);
       }).join('');
       // A row can opt into a clickable category label (see
@@ -5748,13 +5885,18 @@
       return '<li class="callout-index-item">'+
         '<button class="callout-index-copy" data-action="copy-item" data-callout="'+def.id+'" title="Copy this Key Point to your clipboard">'+ICON_CLIPBOARD+'</button>'+
         '<button class="callout-index-link" data-callout="'+def.id+'">'+
+          // Roman numeral matching this Key Point's own page number
+          // (calloutNumberPrefix, e.g. "I. ") — only shown in the PDF
+          // export's compact Table-of-Contents treatment (see its CSS);
+          // hidden in the live clickable-row view.
+          '<span class="callout-index-roman">'+calloutNumberPrefix(def.id)+'</span>'+
           '<span class="callout-text">'+calloutKeyPointText(def)+'</span>'+
           '<span class="callout-arrow">&rarr;</span>'+
         '</button>'+
       '</li>';
     }).join('');
     return '<div class="ov-widget" id="calloutIndex-widget">'+
-      widgetHeader('calloutIndex','Executive Call-Outs', {copy:true, png:true, copyExclude:'.callout-index-copy, .callout-arrow'}) +
+      widgetHeader('calloutIndex','Executive Call-Outs', {copy:true, png:true, copyExclude:'.callout-index-copy, .callout-arrow, .callout-index-roman'}) +
       '<div class="ov-card'+wHidden('calloutIndex')+'" id="calloutIndex">'+
         '<ul class="callout-index-list">'+itemsHtml+'</ul>'+
       '</div>'+
@@ -5770,17 +5912,26 @@
     var kpiHtml =
       '<div class="ov-widget" id="wastedKpiRow-widget">'+
       widgetHeader('wastedKpiRow','Key Metrics', {png:true}) +
-      '<div class="kpi-row'+wHidden('wastedKpiRow')+'" id="wastedKpiRow">'+
-        kpiTile('Total Ad Spend', fmtCurrency(w.totalSpend), 'Across all search terms') +
-        kpiTile('Wasted Spend', fmtCurrency(w.wastedSpend), 'Generated $0 in revenue', 'warn') +
+      '<div class="kpi-row kpi-row-standalone'+wHidden('wastedKpiRow')+'" id="wastedKpiRow">'+
+        kpiTile('Total Ad Spend', kpiValueAbbrev(w.totalSpend), 'Across all search terms') +
+        kpiTile('Wasted Spend', kpiValueAbbrev(w.wastedSpend), 'Generated $0 in revenue', 'warn') +
         kpiTile('Wasted Spend %', fmtPct(w.pct), w.pct>0.25?'Meaningful efficiency opportunity':'Within a typical range', w.pct>0.25?'warn':'good') +
-        kpiTile('Revenue-Generating Spend', fmtCurrency(effective), 'Produced at least one attributed sale', 'good') +
+        kpiTile('Revenue-Generating Spend', kpiValueAbbrev(effective), 'Produced at least one attributed sale', 'good') +
       '</div>'+
       '</div>';
 
     var adProductRows = computeAdProductBreakdown();
+    // The wrapper's own "-widget" id makes it (not its two chart children)
+    // the PDF export's atomic capture unit, so the pair is captured and
+    // placed as one combined image — see the .pdf-export-mode
+    // .hbar-chart-row rule above for why that's what keeps them
+    // side-by-side in the exported PDF. keypoint-charts-compact shrinks
+    // both charts specifically at narrow widths / in the PDF export (see
+    // its CSS rules, shared with every other Key Point's charts) so the
+    // Key Call-Outs widget below has a better chance of fitting on the
+    // same page instead of being pushed to a fresh one.
     var chartsHtml =
-      '<div class="hbar-chart-row">'+
+      '<div class="hbar-chart-row keypoint-charts-compact" id="wastedChartsPair-widget">'+
         renderHBarChart('wastedAdProductChart','Ad Product Performance', adProductRows) +
         renderHBarChart('wastedBrandedChart','Branded vs. Non-Branded', computeBrandedWastedBreakdown()) +
       '</div>';
@@ -5839,27 +5990,37 @@
 
     var isCollapsed = state.collapsedWidgets.has('additionalContextsBody');
 
-    return '<div class="ov-card callouts-card" id="wastedCalloutsCard-widget">'+
-      '<div class="widget-header" style="margin-bottom:14px;">'+
-        '<span class="widget-io-actions" data-html2canvas-ignore="true">'+
-          '<button class="wio-btn" data-action="copy" data-widget="wastedCalloutsCard-widget" data-filename="callouts" data-copy-exclude=".callout-threshold-row" title="Copy this section to your clipboard">'+ICON_CLIPBOARD+'</button>'+
-          '<span class="wio-divider"></span>'+
-          '<button class="wio-btn" data-action="png" data-widget="wastedCalloutsCard-widget" data-filename="callouts" title="Export this section as a transparent PNG">'+ICON_CAMERA+'</button>'+
-        '</span>'+
-        '<h3 class="callouts-title" style="margin:0;">Key Call-Outs</h3>'+
-      '</div>'+
-      '<p class="callout-main-sentence">Approximately <b class="cb-emph">'+fmtPct(w.pct)+'</b> of Total Ad Spend resulted in Wasted Spend <i>(<b class="cb-emph">Ad spend that resulted in $0 in ad revenue</b>)</i>.</p>'+
-      '<h4 class="callouts-subhead widget-title'+(isCollapsed?' is-collapsed':'')+'" data-target="additionalContextsBody">Additional Contexts<span class="chevron">&#9662;</span></h4>'+
-      '<div class="additional-contexts-body'+(isCollapsed?' hidden':'')+'" id="additionalContextsBody">'+
-        '<div class="callout-threshold-row">'+
-          '<label class="threshold-input-label">Wasted Spend threshold&nbsp;<input type="number" class="threshold-input" id="wastedThresholdInput" min="0" max="100" step="1" value="'+threshold+'">%</label>'+
+    // The outer card's id no longer ends in "-widget" so it is excluded from
+    // pdfCollectAtomicBlocks's top-level match; the two inner wrapper divs
+    // below (main text vs. Additional Contexts) each carry their own
+    // "-widget" id instead, becoming independent atomic capture/placement
+    // units so a page break can land between them when needed instead of
+    // forcing the whole Key Call-Outs widget onto a fresh page.
+    return '<div class="ov-card callouts-card" id="wastedCalloutsCard">'+
+      '<div id="wastedCalloutsMain-widget">'+
+        '<div class="widget-header" style="margin-bottom:14px;">'+
+          '<span class="widget-io-actions" data-html2canvas-ignore="true">'+
+            '<button class="wio-btn" data-action="copy" data-widget="wastedCalloutsCard" data-filename="callouts" data-copy-exclude=".callout-threshold-row" title="Copy this section to your clipboard">'+ICON_CLIPBOARD+'</button>'+
+            '<span class="wio-divider"></span>'+
+            '<button class="wio-btn" data-action="png" data-widget="wastedCalloutsCard" data-filename="callouts" title="Export this section as a transparent PNG">'+ICON_CAMERA+'</button>'+
+          '</span>'+
+          '<h3 class="callouts-title" style="margin:0;">Key Call-Outs</h3>'+
         '</div>'+
-        '<ul class="callout-bullets">'+
-          '<li>'+narrative+
-            (subBullets ? '<ul class="callout-bullets-sub">'+subBullets+'</ul>' : '') +
-          '</li>'+
-          (available.length ? '<li>'+roasBullet+'</li>' : '') +
-        '</ul>'+
+        '<p class="callout-main-sentence">Approximately <b class="cb-emph">'+fmtPct(w.pct)+'</b> of Total Ad Spend resulted in Wasted Spend <i>(<b class="cb-emph">Ad spend that resulted in $0 in ad revenue</b>)</i>.</p>'+
+      '</div>'+
+      '<div id="wastedCalloutsAdditionalContexts-widget">'+
+        '<h4 class="callouts-subhead widget-title'+(isCollapsed?' is-collapsed':'')+'" data-target="additionalContextsBody">Additional Contexts<span class="chevron">&#9662;</span></h4>'+
+        '<div class="additional-contexts-body'+(isCollapsed?' hidden':'')+'" id="additionalContextsBody">'+
+          '<div class="callout-threshold-row">'+
+            '<label class="threshold-input-label">Wasted Spend threshold&nbsp;<input type="number" class="threshold-input" id="wastedThresholdInput" min="0" max="100" step="1" value="'+threshold+'">%</label>'+
+          '</div>'+
+          '<ul class="callout-bullets">'+
+            '<li>'+narrative+
+              (subBullets ? '<ul class="callout-bullets-sub">'+subBullets+'</ul>' : '') +
+            '</li>'+
+            (available.length ? '<li>'+roasBullet+'</li>' : '') +
+          '</ul>'+
+        '</div>'+
       '</div>'+
     '</div>';
   }
@@ -6078,7 +6239,10 @@
       {key:'nonbranded',  label:'Non-Branded',  cls:'nonbranded'},
       {key:'branded',     label:'Branded',      cls:'branded'}
     ];
-    var chartHtml = '<div style="margin-bottom:28px;">'+
+    // keypoint-charts-compact (see its CSS rules) keeps this chart's scale
+    // at narrow widths / in the PDF export consistent with every other Key
+    // Point's charts.
+    var chartHtml = '<div class="keypoint-charts-compact" style="margin-bottom:28px;">'+
       renderGroupedHBarChart('brandedPerfChart','Branded vs. Non-Branded Performance', chartRows, seriesDefs) +
     '</div>';
 
@@ -6104,28 +6268,35 @@
 
     var isCollapsed = state.collapsedWidgets.has('brandedAdditionalContextsBody');
 
-    return '<div class="ov-card callouts-card" id="brandedCalloutsCard-widget">'+
-      '<div class="widget-header" style="margin-bottom:14px;">'+
-        '<span class="widget-io-actions" data-html2canvas-ignore="true">'+
-          '<button class="wio-btn" data-action="copy" data-widget="brandedCalloutsCard-widget" data-filename="branded-vs-non-branded-callouts" title="Copy this section to your clipboard">'+ICON_CLIPBOARD+'</button>'+
-          '<span class="wio-divider"></span>'+
-          '<button class="wio-btn" data-action="png" data-widget="brandedCalloutsCard-widget" data-filename="branded-vs-non-branded-callouts" title="Export this section as a transparent PNG">'+ICON_CAMERA+'</button>'+
-        '</span>'+
-        '<h3 class="callouts-title" style="margin:0;">Key Call-Outs</h3>'+
-      '</div>'+
-      '<p class="callout-main-sentence">Approximately <b class="cb-emph">'+fmtCurrencyK(d.nonbranded.revenue)+'</b> worth of ad revenue out of a total ad revenue of <b class="cb-emph">'+fmtCurrencyK(d.total.revenue)+'</b> came from <span class="cb-term">Non-Branded</span> search results; approximately <b class="cb-emph">'+fmtPct(nbRevenueShare)+'</b> of ad revenue.</p>'+
-      '<ul class="callout-bullets-sub" style="margin-top:-8px;margin-bottom:20px;">'+
-        '<li>This came from an ad investment of approximately <b class="cb-emph">'+fmtCurrencyK(d.nonbranded.spend)+'</b> in <span class="cb-term">Non-Branded</span> search term ad <span class="cb-term">spend</span>, which accounted for about <b class="cb-emph">'+fmtPct(nbSpendShare)+'</b> of total ad spend.</li>'+
-      '</ul>'+
-      '<p class="callout-main-sentence">Alternatively, <span class="cb-term">Branded</span> search terms spent approximately <b class="cb-emph">'+fmtPct(brandedSpendShare)+'</b> of total ad spend but was responsible for approximately <b class="cb-emph">'+fmtPct(brandedRevenueShare)+'</b> of ad revenue.</p>'+
-      '<p class="callout-main-sentence">Additionally, approximately <b class="cb-emph">'+fmtPct(nbWastedShare)+'</b> of <span class="cb-term">Wasted Spend</span> came from <span class="cb-term">Non-Branded</span> search term ad spend, about <b class="cb-emph">'+fmtCurrencyK(d.nonbranded.wasted)+'</b> in NB search term <span class="cb-term">Wasted Spend</span> out of a total Wasted search term ad spend of <b class="cb-emph">'+fmtCurrencyK(d.total.wasted)+'</b>.</p>'+
-      '<h4 class="callouts-subhead widget-title'+(isCollapsed?' is-collapsed':'')+'" data-target="brandedAdditionalContextsBody">Additional Contexts<span class="chevron">&#9662;</span></h4>'+
-      '<div class="additional-contexts-body'+(isCollapsed?' hidden':'')+'" id="brandedAdditionalContextsBody">'+
-        '<ul class="callout-bullets">'+
-          '<li><span class="cb-term">NB</span> results saw about <b class="cb-emph">'+fmtPct(d.nonbranded.wastedShareOfOwnSpend)+'</b> of its ad spend result in <span class="cb-term">Wasted Spend</span> vs. <span class="cb-term">Branded</span> results which saw approximately <b class="cb-emph">'+fmtPct(d.branded.wastedShareOfOwnSpend)+'</b> of its ad spend result in $0 ad revenue.</li>'+
-          '<li><span class="cb-term">Branded</span> search results operated with a stronger <b class="cb-emph">'+fmtPct(d.branded.cvr)+'</b> CVR vs. Non-Branded’s <b class="cb-emph">'+fmtPct(d.nonbranded.cvr)+'</b> CVR.</li>'+
-          '<li><span class="cb-term">Branded</span> search results operated with a stronger <b class="cb-emph">'+fmtRatio(d.branded.roas)+'</b> ROAS vs. Non-Branded’s <b class="cb-emph">'+fmtRatio(d.nonbranded.roas)+'</b>.</li>'+
+    // See renderWastedCallouts above for why the outer card's id drops the
+    // "-widget" suffix while the two inner wrappers (main text vs.
+    // Additional Contexts) each carry their own — same split, same reason.
+    return '<div class="ov-card callouts-card" id="brandedCalloutsCard">'+
+      '<div id="brandedCalloutsMain-widget">'+
+        '<div class="widget-header" style="margin-bottom:14px;">'+
+          '<span class="widget-io-actions" data-html2canvas-ignore="true">'+
+            '<button class="wio-btn" data-action="copy" data-widget="brandedCalloutsCard" data-filename="branded-vs-non-branded-callouts" title="Copy this section to your clipboard">'+ICON_CLIPBOARD+'</button>'+
+            '<span class="wio-divider"></span>'+
+            '<button class="wio-btn" data-action="png" data-widget="brandedCalloutsCard" data-filename="branded-vs-non-branded-callouts" title="Export this section as a transparent PNG">'+ICON_CAMERA+'</button>'+
+          '</span>'+
+          '<h3 class="callouts-title" style="margin:0;">Key Call-Outs</h3>'+
+        '</div>'+
+        '<p class="callout-main-sentence">Approximately <b class="cb-emph">'+fmtCurrencyK(d.nonbranded.revenue)+'</b> worth of ad revenue out of a total ad revenue of <b class="cb-emph">'+fmtCurrencyK(d.total.revenue)+'</b> came from <span class="cb-term">Non-Branded</span> search results; approximately <b class="cb-emph">'+fmtPct(nbRevenueShare)+'</b> of ad revenue.</p>'+
+        '<ul class="callout-bullets-sub" style="margin-top:-8px;margin-bottom:20px;">'+
+          '<li>This came from an ad investment of approximately <b class="cb-emph">'+fmtCurrencyK(d.nonbranded.spend)+'</b> in <span class="cb-term">Non-Branded</span> search term ad <span class="cb-term">spend</span>, which accounted for about <b class="cb-emph">'+fmtPct(nbSpendShare)+'</b> of total ad spend.</li>'+
         '</ul>'+
+        '<p class="callout-main-sentence">Alternatively, <span class="cb-term">Branded</span> search terms spent approximately <b class="cb-emph">'+fmtPct(brandedSpendShare)+'</b> of total ad spend but was responsible for approximately <b class="cb-emph">'+fmtPct(brandedRevenueShare)+'</b> of ad revenue.</p>'+
+        '<p class="callout-main-sentence">Additionally, approximately <b class="cb-emph">'+fmtPct(nbWastedShare)+'</b> of <span class="cb-term">Wasted Spend</span> came from <span class="cb-term">Non-Branded</span> search term ad spend, about <b class="cb-emph">'+fmtCurrencyK(d.nonbranded.wasted)+'</b> in NB search term <span class="cb-term">Wasted Spend</span> out of a total Wasted search term ad spend of <b class="cb-emph">'+fmtCurrencyK(d.total.wasted)+'</b>.</p>'+
+      '</div>'+
+      '<div id="brandedCalloutsAdditionalContexts-widget">'+
+        '<h4 class="callouts-subhead widget-title'+(isCollapsed?' is-collapsed':'')+'" data-target="brandedAdditionalContextsBody">Additional Contexts<span class="chevron">&#9662;</span></h4>'+
+        '<div class="additional-contexts-body'+(isCollapsed?' hidden':'')+'" id="brandedAdditionalContextsBody">'+
+          '<ul class="callout-bullets">'+
+            '<li><span class="cb-term">NB</span> results saw about <b class="cb-emph">'+fmtPct(d.nonbranded.wastedShareOfOwnSpend)+'</b> of its ad spend result in <span class="cb-term">Wasted Spend</span> vs. <span class="cb-term">Branded</span> results which saw approximately <b class="cb-emph">'+fmtPct(d.branded.wastedShareOfOwnSpend)+'</b> of its ad spend result in $0 ad revenue.</li>'+
+            '<li><span class="cb-term">Branded</span> search results operated with a stronger <b class="cb-emph">'+fmtPct(d.branded.cvr)+'</b> CVR vs. Non-Branded’s <b class="cb-emph">'+fmtPct(d.nonbranded.cvr)+'</b> CVR.</li>'+
+            '<li><span class="cb-term">Branded</span> search results operated with a stronger <b class="cb-emph">'+fmtRatio(d.branded.roas)+'</b> ROAS vs. Non-Branded’s <b class="cb-emph">'+fmtRatio(d.nonbranded.roas)+'</b>.</li>'+
+          '</ul>'+
+        '</div>'+
       '</div>'+
     '</div>';
   }
@@ -6184,12 +6355,21 @@
     });
     var wastedSeries = [{key:'wasted',label:'Wasted Spend',cls:'wasted'}];
 
-    var topChartsHtml = '<div class="hbar-chart-row">'+
-      renderGroupedHBarChart('matchTypeSpendRevenueChart','Ad Spend/Revenue', spendRevenueRows, spendRevenueSeries, {compact:true}) +
-      renderGroupedHBarChart('matchTypeRoasChart','ROAS', roasRows, roasSeries, {compact:true}) +
+    // Wrapper gets its own "-widget" id (see wastedChartsPair-widget above
+    // for why) so this top pair is captured as one combined image in the
+    // PDF export, keeping it side-by-side with the standalone Wasted
+    // Spend chart below it left as its own separate, full-width block.
+    // keypoint-charts-compact (rather than each chart's own permanent
+    // {compact:true} opt, no longer used here) keeps all three charts at
+    // normal size at full desktop width and only shrinks them to the
+    // shared compact scale at narrow widths / in the PDF export, matching
+    // every other Key Point's charts.
+    var topChartsHtml = '<div class="hbar-chart-row keypoint-charts-compact" id="matchTypeTopChartsPair-widget">'+
+      renderGroupedHBarChart('matchTypeSpendRevenueChart','Ad Spend/Revenue', spendRevenueRows, spendRevenueSeries) +
+      renderGroupedHBarChart('matchTypeRoasChart','ROAS', roasRows, roasSeries) +
     '</div>';
-    var bottomChartHtml = '<div style="margin-bottom:28px;">'+
-      renderGroupedHBarChart('matchTypeWastedChart','Wasted Spend', wastedRows, wastedSeries, {compact:true}) +
+    var bottomChartHtml = '<div class="keypoint-charts-compact" style="margin-bottom:28px;">'+
+      renderGroupedHBarChart('matchTypeWastedChart','Wasted Spend', wastedRows, wastedSeries) +
     '</div>';
 
     var calloutsHtml = renderMatchTypeCallouts(mt);
@@ -6239,35 +6419,42 @@
 
     var isCollapsed = state.collapsedWidgets.has('matchTypeAdditionalContextsBody');
 
-    return '<div class="ov-card callouts-card" id="matchTypeCalloutsCard-widget">'+
-      '<div class="widget-header" style="margin-bottom:14px;">'+
-        '<span class="widget-io-actions" data-html2canvas-ignore="true">'+
-          '<button class="wio-btn" data-action="copy" data-widget="matchTypeCalloutsCard-widget" data-filename="match-type-performance-callouts" title="Copy this section to your clipboard">'+ICON_CLIPBOARD+'</button>'+
-          '<span class="wio-divider"></span>'+
-          '<button class="wio-btn" data-action="png" data-widget="matchTypeCalloutsCard-widget" data-filename="match-type-performance-callouts" title="Export this section as a transparent PNG">'+ICON_CAMERA+'</button>'+
-        '</span>'+
-        '<h3 class="callouts-title" style="margin:0;">Key Call-Outs</h3>'+
-      '</div>'+
-      '<p class="callout-main-sentence"><span class="cb-term">'+esc(revenueLeadLabel)+'</span> results were responsible for <b class="cb-emph">'+fmtPct(rlRevenueShare)+'</b> of ad revenue; or approximately <b class="cb-emph">'+fmtCurrencyK(rl.revenue)+'</b> <span class="cb-term">'+esc(revenueLeadLabel)+'</span> ad revenue out of a total of <b class="cb-emph">'+fmtCurrencyK(t.revenue)+'</b>.</p>'+
-      '<ul class="callout-bullets-sub" style="margin-top:-8px;margin-bottom:20px;">'+
-        '<li><span class="cb-term">'+esc(revenueSecondLabel)+'</span> targeting generated the second most amount of individual ad revenue, approximately <b class="cb-emph">'+fmtPct(r2RevenueShare)+'</b> of total ad revenue: approximately <b class="cb-emph">'+fmtCurrencyK(r2.revenue)+'</b> in <span class="cb-term">'+esc(revenueSecondLabel)+'</span> ad revenue.</li>'+
-      '</ul>'+
-      '<p class="callout-main-sentence"><span class="cb-term">'+esc(wastedLeadLabel)+'</span> results generated the most individual Wasted Spend: responsible for <b class="cb-emph">'+fmtPct(wlWastedShare)+'</b> of Wasted Spend or about <b class="cb-emph">'+fmtCurrencyK(wl.wasted)+'</b> in non-converting ad spend out of a total Wasted Spend of <b class="cb-emph">'+fmtCurrencyK(t.wasted)+'</b>.</p>'+
-      '<h4 class="callouts-subhead widget-title'+(isCollapsed?' is-collapsed':'')+'" data-target="matchTypeAdditionalContextsBody">Additional Contexts<span class="chevron">&#9662;</span></h4>'+
-      '<div class="additional-contexts-body'+(isCollapsed?' hidden':'')+'" id="matchTypeAdditionalContextsBody">'+
-        '<ul class="callout-bullets">'+
-          '<li><span class="cb-term">'+esc(roasLeadLabel)+'</span> targeting operated with the highest ROAS at <b class="cb-emph">'+fmtRatio(roasL.roas)+'</b>, responsible for <b class="cb-emph">'+fmtCurrencyK(roasL.revenue)+'</b> or <b class="cb-emph">'+fmtPct(roasLRevenueShare)+'</b> of total ad revenue.'+
-            '<ul class="callout-bullets-sub">'+
-              '<li><span class="cb-term">'+esc(roasLeadLabel)+'</span> targeting was also responsible for <b class="cb-emph">'+fmtPct(roasLWastedShare)+'</b> of total Wasted Spend, about <b class="cb-emph">'+fmtCurrencyK(roasL.wasted)+'</b> in Wasted Spend.</li>'+
-            '</ul>'+
-          '</li>'+
-          '<li><span class="cb-term">'+esc(cvrLeadLabel)+'</span> targeting operated with the highest CVR of <b class="cb-emph">'+fmtPct(mt.byType[cvrLeadType].cvr)+'</b>.</li>'+
-          '<li><span class="cb-term">AUTO</span> was responsible for about <b class="cb-emph">'+fmtPct(autoSpendShare)+'</b> of TOTAL ad spend: approximately <b class="cb-emph">'+fmtCurrencyK(auto.spend)+'</b> in ad investment.'+
-            '<ul class="callout-bullets-sub">'+
-              '<li><span class="cb-term">AUTO</span> was responsible for <b class="cb-emph">'+fmtPct(autoWastedShare)+'</b> of total Wasted Spend or about <b class="cb-emph">'+fmtCurrencyK(auto.wasted)+'</b> in AUTO Wasted Spend.</li>'+
-            '</ul>'+
-          '</li>'+
+    // See renderWastedCallouts above for why the outer card's id drops the
+    // "-widget" suffix while the two inner wrappers (main text vs.
+    // Additional Contexts) each carry their own — same split, same reason.
+    return '<div class="ov-card callouts-card" id="matchTypeCalloutsCard">'+
+      '<div id="matchTypeCalloutsMain-widget">'+
+        '<div class="widget-header" style="margin-bottom:14px;">'+
+          '<span class="widget-io-actions" data-html2canvas-ignore="true">'+
+            '<button class="wio-btn" data-action="copy" data-widget="matchTypeCalloutsCard" data-filename="match-type-performance-callouts" title="Copy this section to your clipboard">'+ICON_CLIPBOARD+'</button>'+
+            '<span class="wio-divider"></span>'+
+            '<button class="wio-btn" data-action="png" data-widget="matchTypeCalloutsCard" data-filename="match-type-performance-callouts" title="Export this section as a transparent PNG">'+ICON_CAMERA+'</button>'+
+          '</span>'+
+          '<h3 class="callouts-title" style="margin:0;">Key Call-Outs</h3>'+
+        '</div>'+
+        '<p class="callout-main-sentence"><span class="cb-term">'+esc(revenueLeadLabel)+'</span> results were responsible for <b class="cb-emph">'+fmtPct(rlRevenueShare)+'</b> of ad revenue; or approximately <b class="cb-emph">'+fmtCurrencyK(rl.revenue)+'</b> <span class="cb-term">'+esc(revenueLeadLabel)+'</span> ad revenue out of a total of <b class="cb-emph">'+fmtCurrencyK(t.revenue)+'</b>.</p>'+
+        '<ul class="callout-bullets-sub" style="margin-top:-8px;margin-bottom:20px;">'+
+          '<li><span class="cb-term">'+esc(revenueSecondLabel)+'</span> targeting generated the second most amount of individual ad revenue, approximately <b class="cb-emph">'+fmtPct(r2RevenueShare)+'</b> of total ad revenue: approximately <b class="cb-emph">'+fmtCurrencyK(r2.revenue)+'</b> in <span class="cb-term">'+esc(revenueSecondLabel)+'</span> ad revenue.</li>'+
         '</ul>'+
+        '<p class="callout-main-sentence"><span class="cb-term">'+esc(wastedLeadLabel)+'</span> results generated the most individual Wasted Spend: responsible for <b class="cb-emph">'+fmtPct(wlWastedShare)+'</b> of Wasted Spend or about <b class="cb-emph">'+fmtCurrencyK(wl.wasted)+'</b> in non-converting ad spend out of a total Wasted Spend of <b class="cb-emph">'+fmtCurrencyK(t.wasted)+'</b>.</p>'+
+      '</div>'+
+      '<div id="matchTypeCalloutsAdditionalContexts-widget">'+
+        '<h4 class="callouts-subhead widget-title'+(isCollapsed?' is-collapsed':'')+'" data-target="matchTypeAdditionalContextsBody">Additional Contexts<span class="chevron">&#9662;</span></h4>'+
+        '<div class="additional-contexts-body'+(isCollapsed?' hidden':'')+'" id="matchTypeAdditionalContextsBody">'+
+          '<ul class="callout-bullets">'+
+            '<li><span class="cb-term">'+esc(roasLeadLabel)+'</span> targeting operated with the highest ROAS at <b class="cb-emph">'+fmtRatio(roasL.roas)+'</b>, responsible for <b class="cb-emph">'+fmtCurrencyK(roasL.revenue)+'</b> or <b class="cb-emph">'+fmtPct(roasLRevenueShare)+'</b> of total ad revenue.'+
+              '<ul class="callout-bullets-sub">'+
+                '<li><span class="cb-term">'+esc(roasLeadLabel)+'</span> targeting was also responsible for <b class="cb-emph">'+fmtPct(roasLWastedShare)+'</b> of total Wasted Spend, about <b class="cb-emph">'+fmtCurrencyK(roasL.wasted)+'</b> in Wasted Spend.</li>'+
+              '</ul>'+
+            '</li>'+
+            '<li><span class="cb-term">'+esc(cvrLeadLabel)+'</span> targeting operated with the highest CVR of <b class="cb-emph">'+fmtPct(mt.byType[cvrLeadType].cvr)+'</b>.</li>'+
+            '<li><span class="cb-term">AUTO</span> was responsible for about <b class="cb-emph">'+fmtPct(autoSpendShare)+'</b> of TOTAL ad spend: approximately <b class="cb-emph">'+fmtCurrencyK(auto.spend)+'</b> in ad investment.'+
+              '<ul class="callout-bullets-sub">'+
+                '<li><span class="cb-term">AUTO</span> was responsible for <b class="cb-emph">'+fmtPct(autoWastedShare)+'</b> of total Wasted Spend or about <b class="cb-emph">'+fmtCurrencyK(auto.wasted)+'</b> in AUTO Wasted Spend.</li>'+
+              '</ul>'+
+            '</li>'+
+          '</ul>'+
+        '</div>'+
       '</div>'+
     '</div>';
   }
@@ -6296,7 +6483,10 @@
       {key:'nonConverting', label:'Non-Converting', cls:'wasted'},
       {key:'wastedTotal',   label:'Wasted Spend Total', cls:'spend'}
     ];
-    var chartHtml = '<div style="margin-bottom:28px;">'+
+    // keypoint-charts-compact (see its CSS rules) keeps this chart's scale
+    // at narrow widths / in the PDF export consistent with every other Key
+    // Point's charts.
+    var chartHtml = '<div class="keypoint-charts-compact" style="margin-bottom:28px;">'+
       renderGroupedHBarChart('nonConvertingChart','Non-Converting Search Results', chartRows, chartSeries) +
     '</div>';
 
@@ -6315,32 +6505,39 @@
     var wastedShareOfTotal = w.wastedSpend ? d.nonConvertingWastedSpend/w.wastedSpend : 0;
     var isCollapsed = state.collapsedWidgets.has('nonConvertingAdditionalContextsBody');
 
-    return '<div class="ov-card callouts-card" id="nonConvertingCalloutsCard-widget">'+
-      '<div class="widget-header" style="margin-bottom:14px;">'+
-        '<span class="widget-io-actions" data-html2canvas-ignore="true">'+
-          '<button class="wio-btn" data-action="copy" data-widget="nonConvertingCalloutsCard-widget" data-filename="non-converting-search-results-callouts" title="Copy this section to your clipboard">'+ICON_CLIPBOARD+'</button>'+
-          '<span class="wio-divider"></span>'+
-          '<button class="wio-btn" data-action="png" data-widget="nonConvertingCalloutsCard-widget" data-filename="non-converting-search-results-callouts" title="Export this section as a transparent PNG">'+ICON_CAMERA+'</button>'+
-        '</span>'+
-        '<h3 class="callouts-title" style="margin:0;">Key Call-Outs</h3>'+
-      '</div>'+
-      '<p class="callout-main-sentence">Approximately <b class="cb-emph">'+fmtPct(d.pctNonConverting)+'</b> of the unique search terms and ASINs generated never converted into ad revenue.</p>'+
-      '<ul class="callout-bullets-sub" style="margin-top:-8px;margin-bottom:20px;">'+
-        '<li>These non-converting search terms accounted for approximately <b class="cb-emph">'+fmtPct(wastedShareOfTotal)+'</b> of the Total Wasted Spend.'+
-          '<ul class="callout-bullets-sub">'+
-            '<li>Approximately <b class="cb-emph">'+fmtCurrencyK(d.nonConvertingWastedSpend)+'</b> in Wasted Spend out of a total Wasted Spend of <b class="cb-emph">'+fmtCurrencyK(w.wastedSpend)+'</b> came from search results and ASIN targets that never converted.</li>'+
-          '</ul>'+
-        '</li>'+
-      '</ul>'+
-      '<h4 class="callouts-subhead widget-title'+(isCollapsed?' is-collapsed':'')+'" data-target="nonConvertingAdditionalContextsBody">Additional Contexts<span class="chevron">&#9662;</span></h4>'+
-      '<div class="additional-contexts-body'+(isCollapsed?' hidden':'')+'" id="nonConvertingAdditionalContextsBody">'+
-        '<ul class="callout-bullets">'+
-          '<li>Approximately <b class="cb-emph">'+fmtPct(d.pctLowClickOfNonConverting)+'</b> of these non-converting search results had 5 clicks or less.'+
+    // See renderWastedCallouts above for why the outer card's id drops the
+    // "-widget" suffix while the two inner wrappers (main text vs.
+    // Additional Contexts) each carry their own — same split, same reason.
+    return '<div class="ov-card callouts-card" id="nonConvertingCalloutsCard">'+
+      '<div id="nonConvertingCalloutsMain-widget">'+
+        '<div class="widget-header" style="margin-bottom:14px;">'+
+          '<span class="widget-io-actions" data-html2canvas-ignore="true">'+
+            '<button class="wio-btn" data-action="copy" data-widget="nonConvertingCalloutsCard" data-filename="non-converting-search-results-callouts" title="Copy this section to your clipboard">'+ICON_CLIPBOARD+'</button>'+
+            '<span class="wio-divider"></span>'+
+            '<button class="wio-btn" data-action="png" data-widget="nonConvertingCalloutsCard" data-filename="non-converting-search-results-callouts" title="Export this section as a transparent PNG">'+ICON_CAMERA+'</button>'+
+          '</span>'+
+          '<h3 class="callouts-title" style="margin:0;">Key Call-Outs</h3>'+
+        '</div>'+
+        '<p class="callout-main-sentence">Approximately <b class="cb-emph">'+fmtPct(d.pctNonConverting)+'</b> of the unique search terms and ASINs generated never converted into ad revenue.</p>'+
+        '<ul class="callout-bullets-sub" style="margin-top:-8px;margin-bottom:20px;">'+
+          '<li>These non-converting search terms accounted for approximately <b class="cb-emph">'+fmtPct(wastedShareOfTotal)+'</b> of the Total Wasted Spend.'+
             '<ul class="callout-bullets-sub">'+
-              '<li>Around <b class="cb-emph">'+fmtCountK(d.lowClickCount)+'</b> unique, non-converting search results with 5 clicks or less.</li>'+
+              '<li>Approximately <b class="cb-emph">'+fmtCurrencyK(d.nonConvertingWastedSpend)+'</b> in Wasted Spend out of a total Wasted Spend of <b class="cb-emph">'+fmtCurrencyK(w.wastedSpend)+'</b> came from search results and ASIN targets that never converted.</li>'+
             '</ul>'+
           '</li>'+
         '</ul>'+
+      '</div>'+
+      '<div id="nonConvertingCalloutsAdditionalContexts-widget">'+
+        '<h4 class="callouts-subhead widget-title'+(isCollapsed?' is-collapsed':'')+'" data-target="nonConvertingAdditionalContextsBody">Additional Contexts<span class="chevron">&#9662;</span></h4>'+
+        '<div class="additional-contexts-body'+(isCollapsed?' hidden':'')+'" id="nonConvertingAdditionalContextsBody">'+
+          '<ul class="callout-bullets">'+
+            '<li>Approximately <b class="cb-emph">'+fmtPct(d.pctLowClickOfNonConverting)+'</b> of these non-converting search results had 5 clicks or less.'+
+              '<ul class="callout-bullets-sub">'+
+                '<li>Around <b class="cb-emph">'+fmtCountK(d.lowClickCount)+'</b> unique, non-converting search results with 5 clicks or less.</li>'+
+              '</ul>'+
+            '</li>'+
+          '</ul>'+
+        '</div>'+
       '</div>'+
     '</div>';
   }
@@ -6371,7 +6568,12 @@
     ];
     var roasSeries = [{key:'roas', label:'ROAS', cls:'spend'}];
 
-    var chartsHtml = '<div class="hbar-chart-row">'+
+    // Wrapper gets its own "-widget" id (see wastedChartsPair-widget above
+    // for why) so this pair is captured as one combined image in the PDF
+    // export and stays side-by-side there. keypoint-charts-compact (see its
+    // CSS rules) keeps this pair's scale at narrow widths / in the PDF
+    // export consistent with every other Key Point's charts.
+    var chartsHtml = '<div class="hbar-chart-row keypoint-charts-compact" id="newTargetsChartsPair-widget">'+
       renderGroupedHBarChart('newTargetsSpendRevenueChart','Ad Spend/Revenue', spendRevenueRows, spendRevenueSeries) +
       renderGroupedHBarChart('newTargetsRoasChart','ROAS', roasRows, roasSeries) +
     '</div>';
@@ -6409,29 +6611,36 @@
     var targetedWastedShare = vt.targeted.spend ? vt.targeted.wasted/vt.targeted.spend : 0;
     var isCollapsed = state.collapsedWidgets.has('newTargetsAdditionalContextsBody');
 
-    return '<div class="ov-card callouts-card" id="newTargetsCalloutsCard-widget">'+
-      '<div class="widget-header" style="margin-bottom:14px;">'+
-        '<span class="widget-io-actions" data-html2canvas-ignore="true">'+
-          '<button class="wio-btn" data-action="copy" data-widget="newTargetsCalloutsCard-widget" data-filename="new-targets-callouts" title="Copy this section to your clipboard">'+ICON_CLIPBOARD+'</button>'+
-          '<span class="wio-divider"></span>'+
-          '<button class="wio-btn" data-action="png" data-widget="newTargetsCalloutsCard-widget" data-filename="new-targets-callouts" title="Export this section as a transparent PNG">'+ICON_CAMERA+'</button>'+
-        '</span>'+
-        '<h3 class="callouts-title" style="margin:0;">Key Call-Outs</h3>'+
-      '</div>'+
-      '<p class="callout-main-sentence">Discovery KW &amp; ASIN results saw <b class="cb-emph">'+fmtPct(nt.pctSpendWasted)+'</b> of its investment result in $0 revenue. Approximately <b class="cb-emph">'+fmtCurrencyK(nt.wasted)+'</b> Wasted Spend came from a total discovery investment of around <b class="cb-emph">'+fmtCurrencyK(nt.spend)+'</b>.</p>'+
-      '<ul class="callout-bullets-sub" style="margin-top:-8px;margin-bottom:20px;">'+
-        '<li>In comparison, targeted search terms and ASINs operated with about <b class="cb-emph">'+fmtPct(targetedWastedShare)+'</b> of its ad spend resulted in $0 ad revenue; or about <b class="cb-emph">'+fmtCurrencyK(vt.targeted.wasted)+'</b> in Wasted Spend.</li>'+
-      '</ul>'+
-      '<h4 class="callouts-subhead widget-title'+(isCollapsed?' is-collapsed':'')+'" data-target="newTargetsAdditionalContextsBody">Additional Contexts<span class="chevron">&#9662;</span></h4>'+
-      '<div class="additional-contexts-body'+(isCollapsed?' hidden':'')+'" id="newTargetsAdditionalContextsBody">'+
-        '<ul class="callout-bullets">'+
-          '<li><b class="cb-emph">'+fmtPct(ncr.pctLowClickOfNonConverting)+'</b> of these non-converting search results had 5 clicks or less.</li>'+
-          '<li><b class="cb-emph">'+fmtPct(nt.pctLowClick)+'</b> of new ASIN and search term targets had 5 clicks or less.'+
-            '<ul class="callout-bullets-sub">'+
-              '<li>Approximately <b class="cb-emph">'+fmtCountK(nt.lowClickCount)+'</b> new targets with 5 clicks or less.</li>'+
-            '</ul>'+
-          '</li>'+
+    // See renderWastedCallouts above for why the outer card's id drops the
+    // "-widget" suffix while the two inner wrappers (main text vs.
+    // Additional Contexts) each carry their own — same split, same reason.
+    return '<div class="ov-card callouts-card" id="newTargetsCalloutsCard">'+
+      '<div id="newTargetsCalloutsMain-widget">'+
+        '<div class="widget-header" style="margin-bottom:14px;">'+
+          '<span class="widget-io-actions" data-html2canvas-ignore="true">'+
+            '<button class="wio-btn" data-action="copy" data-widget="newTargetsCalloutsCard" data-filename="new-targets-callouts" title="Copy this section to your clipboard">'+ICON_CLIPBOARD+'</button>'+
+            '<span class="wio-divider"></span>'+
+            '<button class="wio-btn" data-action="png" data-widget="newTargetsCalloutsCard" data-filename="new-targets-callouts" title="Export this section as a transparent PNG">'+ICON_CAMERA+'</button>'+
+          '</span>'+
+          '<h3 class="callouts-title" style="margin:0;">Key Call-Outs</h3>'+
+        '</div>'+
+        '<p class="callout-main-sentence">Discovery KW &amp; ASIN results saw <b class="cb-emph">'+fmtPct(nt.pctSpendWasted)+'</b> of its investment result in $0 revenue. Approximately <b class="cb-emph">'+fmtCurrencyK(nt.wasted)+'</b> Wasted Spend came from a total discovery investment of around <b class="cb-emph">'+fmtCurrencyK(nt.spend)+'</b>.</p>'+
+        '<ul class="callout-bullets-sub" style="margin-top:-8px;margin-bottom:20px;">'+
+          '<li>In comparison, targeted search terms and ASINs operated with about <b class="cb-emph">'+fmtPct(targetedWastedShare)+'</b> of its ad spend resulted in $0 ad revenue; or about <b class="cb-emph">'+fmtCurrencyK(vt.targeted.wasted)+'</b> in Wasted Spend.</li>'+
         '</ul>'+
+      '</div>'+
+      '<div id="newTargetsCalloutsAdditionalContexts-widget">'+
+        '<h4 class="callouts-subhead widget-title'+(isCollapsed?' is-collapsed':'')+'" data-target="newTargetsAdditionalContextsBody">Additional Contexts<span class="chevron">&#9662;</span></h4>'+
+        '<div class="additional-contexts-body'+(isCollapsed?' hidden':'')+'" id="newTargetsAdditionalContextsBody">'+
+          '<ul class="callout-bullets">'+
+            '<li><b class="cb-emph">'+fmtPct(ncr.pctLowClickOfNonConverting)+'</b> of these non-converting search results had 5 clicks or less.</li>'+
+            '<li><b class="cb-emph">'+fmtPct(nt.pctLowClick)+'</b> of new ASIN and search term targets had 5 clicks or less.'+
+              '<ul class="callout-bullets-sub">'+
+                '<li>Approximately <b class="cb-emph">'+fmtCountK(nt.lowClickCount)+'</b> new targets with 5 clicks or less.</li>'+
+              '</ul>'+
+            '</li>'+
+          '</ul>'+
+        '</div>'+
       '</div>'+
     '</div>';
   }
